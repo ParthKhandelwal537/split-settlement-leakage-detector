@@ -172,8 +172,25 @@ def classify_exceptions(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
         e["confidence_score"], e["status"], e["rupee_impact"], e["created_at"]
     ) for e in exceptions])
     
+    # Audit log entry for Classifier stage
+    type_counts = {}
+    for e in exceptions:
+        t = e["exception_type"]
+        type_counts[t] = type_counts.get(t, 0) + 1
+    
+    cursor.execute(
+        "INSERT INTO audit_log (timestamp, stage, action, detail) VALUES (?, ?, ?, ?)",
+        (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Stage 3",
+            "EXCEPTION_CLASSIFICATION",
+            f"Classified {len(exceptions)} discrepancies into 3 buckets: settlement-math ({type_counts.get('settlement-math', 0)}), tax-timing ({type_counts.get('tax-timing', 0)}), structural/compliance ({type_counts.get('structural/compliance', 0)})."
+        )
+    )
+    
     conn.commit()
     return exceptions
+
 
 def main():
     import os

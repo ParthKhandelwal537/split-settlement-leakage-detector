@@ -89,4 +89,21 @@ def run_matcher(conn: sqlite3.Connection) -> pd.DataFrame:
             "has_delta": abs(payout_delta) > 0.001 or not is_split_eligible
         })
         
-    return pd.DataFrame(results)
+    df = pd.DataFrame(results)
+    
+    # Audit log entry for Matcher stage
+    cursor = conn.cursor()
+    from datetime import datetime
+    cursor.execute(
+        "INSERT INTO audit_log (timestamp, stage, action, detail) VALUES (?, ?, ?, ?)",
+        (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Stage 2-3",
+            "RECONCILIATION_MATCHING",
+            f"Point-in-time rate calculation completed for {len(df)} orders. Identified {int(df['has_delta'].sum())} orders with financial or eligibility variance."
+        )
+    )
+    conn.commit()
+    
+    return df
+
