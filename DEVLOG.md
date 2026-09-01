@@ -18,3 +18,22 @@
 - **NODAL-2026-08-14 (Nodal Ledger Break)**: On 2026-08-14, closing balance ₹749,061.43 vs expected ₹799,061.43 (exact ₹50,000 deficit).
 - Status: **VERIFIED & MATCHES SPEC**.
 
+## Stage 2: Point-in-Time Rule Engine
+- Implemented `src/rule_engine.py` with `get_applicable_rate()`.
+- Added unit tests in `tests/test_rule_engine.py` covering retroactive slab changes and tax rate transitions.
+- All 4 unit tests passing.
+
+## Stage 3: Matcher + Classifier
+- Implemented `src/matcher.py` (point-in-time calculation vs actual settlement diffs).
+- Implemented `src/classifier.py` (3-bucket classification: `settlement-math`, `tax-timing`, `structural/compliance`).
+- Evaluated GSTR-8 filing dates vs settlement dates for TCS tax-timing recognition.
+
+### Checkpoint 2 Verification (Stage 3)
+- **ORD-001**: Caught as `settlement-math` exception (Commission slab mismatch ₹300.00).
+- **ORD-015**: Caught as `settlement-math` exception (Refund clawback disparity ₹1,500.00).
+- **ORD-028**: Caught as `tax-timing` exception (Pending GSTR-8 filing, impact ₹100.00).
+- **NODAL-2026-08-14**: Caught as `structural/compliance` exception (Nodal account balance break ₹50,000.00).
+- Ineligible split orders (`ORD-010`, `ORD-020`, `ORD-030`, `ORD-040`, `ORD-050`, `ORD-060`) correctly classified as `structural/compliance`.
+- Status: **VERIFIED & MATCHES SPEC**.
+
+
