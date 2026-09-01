@@ -123,7 +123,7 @@ st.markdown("""
     /* ── TOP KPI METRIC STRIP ── */
     .kpi-row {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 12px;
         margin-bottom: 20px;
     }
@@ -134,10 +134,13 @@ st.markdown("""
         background: var(--bg-card);
         border: 1px solid var(--border-subtle);
         border-radius: 12px;
-        padding: 14px 18px;
+        padding: 14px 16px;
         position: relative;
         overflow: hidden;
         transition: transform 0.2s ease, border-color 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     .kpi-box:hover {
         transform: translateY(-2px);
@@ -149,27 +152,29 @@ st.markdown("""
         height: 3px;
     }
     .kpi-title {
-        font-size: 0.68rem;
+        font-size: 0.70rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #64748b;
+        color: #94a3b8;
         margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: normal;
+        line-height: 1.25;
     }
     .kpi-number {
         font-size: 1.65rem;
         font-weight: 800;
         letter-spacing: -0.03em;
         line-height: 1.2;
+        margin: 2px 0;
     }
     .kpi-desc {
         font-size: 0.72rem;
-        color: #94a3b8;
-        margin-top: 3px;
-        white-space: nowrap;
+        color: #64748b;
+        margin-top: 2px;
+        white-space: normal;
+        line-height: 1.3;
     }
 
     /* ── SECTION CARDS ── */
@@ -389,21 +394,21 @@ st.markdown(f"""
 <div class="kpi-row">
     <div class="kpi-box">
         <div class="kpi-stripe" style="background: linear-gradient(90deg, #3b82f6, #0ea5e9);"></div>
-        <div class="kpi-title">Match Rate</div>
+        <div class="kpi-title">Recon Match Rate</div>
         <div class="kpi-number" style="color: #60a5fa;">{report['match_rate']}%</div>
-        <div class="kpi-desc">{report['clean_orders']} / {report['total_orders']} orders clean</div>
+        <div class="kpi-desc">{report['clean_orders']} of {report['total_orders']} orders clean</div>
     </div>
     <div class="kpi-box">
         <div class="kpi-stripe" style="background: linear-gradient(90deg, #f43f5e, #e11d48);"></div>
         <div class="kpi-title">Settlement Leakage</div>
         <div class="kpi-number" style="color: #fb7185;">₹{report['total_settlement_leakage_inr']:,.0f}</div>
-        <div class="kpi-desc">Math & slab variances</div>
+        <div class="kpi-desc">Math & slab variance</div>
     </div>
     <div class="kpi-box">
         <div class="kpi-stripe" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
         <div class="kpi-title">Structural Risk</div>
         <div class="kpi-number" style="color: #fbbf24;">₹{report['total_structural_exposure_inr']:,.0f}</div>
-        <div class="kpi-desc">Nodal break & split blocks</div>
+        <div class="kpi-desc">Nodal break & split block</div>
     </div>
     <div class="kpi-box">
         <div class="kpi-stripe" style="background: linear-gradient(90deg, #8b5cf6, #7c3aed);"></div>
@@ -415,7 +420,7 @@ st.markdown(f"""
         <div class="kpi-stripe" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
         <div class="kpi-title">Tax Timing Filter</div>
         <div class="kpi-number" style="color: #34d399;">{report['tax_timing_pct']}%</div>
-        <div class="kpi-desc">Filtered non-leakage (GSTR-8)</div>
+        <div class="kpi-desc">GSTR-8 timing buffer</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -452,7 +457,7 @@ with tab_overview:
         ])
         
         if not type_data.empty:
-            donut_chart = alt.Chart(type_data).mark_arc(innerRadius=62, outerRadius=90, strokeWidth=2, stroke="#0b1324").encode(
+            donut_chart = alt.Chart(type_data).mark_arc(innerRadius=60, outerRadius=88, strokeWidth=2, stroke="#0b1324").encode(
                 theta=alt.Theta("Count:Q"),
                 color=alt.Color("Classification:N", scale=alt.Scale(
                     domain=["settlement-math", "tax-timing", "structural/compliance"],
@@ -464,7 +469,8 @@ with tab_overview:
                     labelColor="#cbd5e1",
                     labelFontSize=11,
                     symbolSize=80,
-                    labelLimit=200
+                    labelLimit=200,
+                    padding=10
                 )),
                 tooltip=["Classification:N", "Count:Q"]
             ).properties(
@@ -492,47 +498,116 @@ with tab_overview:
         vendor_impact = vendor_impact.sort_values("rupee_impact", ascending=False).head(6)
 
         if not vendor_impact.empty:
-            hbar_chart = alt.Chart(vendor_impact).mark_bar(
+            hbar_base = alt.Chart(vendor_impact)
+            
+            bars = hbar_base.mark_bar(
                 cornerRadiusTopRight=6, cornerRadiusBottomRight=6,
                 color=alt.Gradient(gradient='linear', stops=[
                     alt.GradientStop(color='#0ea5e9', offset=0),
                     alt.GradientStop(color='#8b5cf6', offset=1)
                 ], x1=0, x2=1, y1=0, y2=0)
             ).encode(
-                y=alt.Y("vendor_id:N", sort="-x", title=None, axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=11, labelPadding=12, labelLimit=150)),
-                x=alt.X("rupee_impact:Q", title="₹ Total Financial Exposure", axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", titlePadding=10, format=",.0f")),
+                y=alt.Y("vendor_id:N", sort="-x", title=None, axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=11, labelPadding=12, labelLimit=160)),
+                x=alt.X("rupee_impact:Q", title="₹ Total Financial Exposure", axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", titlePadding=12, labelPadding=8, format=",.0f")),
                 tooltip=[alt.Tooltip("vendor_id:N", title="Entity"), alt.Tooltip("rupee_impact:Q", title="₹ Exposure", format=",.2f")]
-            ).properties(
+            )
+
+            text_labels = hbar_base.mark_text(
+                align="left",
+                baseline="middle",
+                dx=6,
+                fontSize=11,
+                fontWeight=600,
+                color="#cbd5e1"
+            ).encode(
+                y=alt.Y("vendor_id:N", sort="-x"),
+                x=alt.X("rupee_impact:Q"),
+                text=alt.Text("rupee_impact:Q", format=",.0f")
+            )
+
+            hbar_chart = (bars + text_labels).properties(
                 height=230,
                 width="container",
-                padding={"left": 20, "right": 20, "top": 10, "bottom": 10}
+                padding={"left": 25, "right": 45, "top": 10, "bottom": 10}
             ).configure_view(strokeWidth=0).configure(background="transparent")
             st.altair_chart(hbar_chart, use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Row 2: Nodal Solvency Monitor Chart (Crisp, native Streamlit multi-line chart)
+    # Row 2: Nodal Solvency Monitor Chart (Dedicated Altair Line Chart with full left margin so Y-axis numbers are never clipped)
     st.markdown("""
     <div class="section-card">
         <div class="card-header-title">
             <span>📈 Daily Nodal Account Solvency Monitor (RBI Directions)</span>
-            <div style="font-size:0.75rem; display:flex; gap:16px;">
-                <span style="color:#0ea5e9; font-weight:700;">● Actual Closing</span>
-                <span style="color:#f59e0b; font-weight:700;">● Mathematical Expected</span>
-            </div>
+            <span style="font-size:0.75rem; color:#38bdf8;">62-Day Continuous Escrow Audit</span>
         </div>
     """, unsafe_allow_html=True)
 
     nodal_df = pd.read_sql_query("SELECT date, opening_balance, collected, settled, closing_balance FROM nodal_account_ledger ORDER BY date", conn)
     nodal_df["expected_closing"] = round(nodal_df["opening_balance"] + nodal_df["collected"] - nodal_df["settled"], 2)
+    
+    nodal_melt = pd.melt(
+        nodal_df,
+        id_vars=["date"],
+        value_vars=["closing_balance", "expected_closing"],
+        var_name="Series",
+        value_name="Balance"
+    )
+    nodal_melt["Series"] = nodal_melt["Series"].map({
+        "closing_balance": "Actual Nodal Closing",
+        "expected_closing": "Mathematical Expected"
+    })
+    nodal_melt["date"] = pd.to_datetime(nodal_melt["date"])
 
-    chart_data = pd.DataFrame({
-        "Date": pd.to_datetime(nodal_df["date"]),
-        "Actual Nodal Closing": nodal_df["closing_balance"],
-        "Mathematical Expected": nodal_df["expected_closing"]
-    }).set_index("Date")
+    nodal_chart = alt.Chart(nodal_melt).mark_line(strokeWidth=2.4).encode(
+        x=alt.X("date:T", title=None, axis=alt.Axis(
+            labelColor="#94a3b8",
+            format="%b %d",
+            labelFontSize=11,
+            labelPadding=8,
+            gridColor="rgba(148, 163, 184, 0.08)"
+        )),
+        y=alt.Y("Balance:Q", title="Nodal Balance (₹ INR)",
+            axis=alt.Axis(
+                labelColor="#cbd5e1",
+                titleColor="#94a3b8",
+                titleFontSize=11,
+                titlePadding=18,
+                labelPadding=12,
+                format=",.0f",
+                gridColor="rgba(148, 163, 184, 0.08)"
+            ),
+            scale=alt.Scale(zero=False, padding=12)
+        ),
+        color=alt.Color("Series:N", scale=alt.Scale(
+            domain=["Actual Nodal Closing", "Mathematical Expected"],
+            range=["#0ea5e9", "#f59e0b"]
+        ), legend=alt.Legend(
+            title=None,
+            orient="bottom",
+            labelColor="#cbd5e1",
+            labelFontSize=11,
+            symbolSize=80,
+            padding=10
+        )),
+        strokeDash=alt.StrokeDash("Series:N", scale=alt.Scale(
+            domain=["Actual Nodal Closing", "Mathematical Expected"],
+            range=[[0], [6, 4]]
+        ), legend=None),
+        tooltip=[
+            alt.Tooltip("date:T", title="Date", format="%Y-%m-%d"),
+            alt.Tooltip("Series:N", title="Metric"),
+            alt.Tooltip("Balance:Q", title="Amount (INR)", format=",.2f")
+        ]
+    ).properties(
+        height=260,
+        width="container",
+        padding={"left": 55, "right": 25, "top": 15, "bottom": 15}
+    ).configure_view(
+        strokeWidth=0
+    ).configure(background="transparent")
 
-    st.line_chart(chart_data, color=["#0ea5e9", "#f59e0b"], height=250, use_container_width=True)
+    st.altair_chart(nodal_chart, use_container_width=True)
 
     st.markdown("""
     <div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:8px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
