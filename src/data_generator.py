@@ -266,6 +266,18 @@ def generate_data(conn: sqlite3.Connection):
         expected_settlement_amount = round(gross_amount - (comm_deducted + tcs_deducted + tds_deducted + logistics), 2)
         actual_settlement_amount = expected_settlement_amount
 
+        # Ordinary refunds: ORD-005 and ORD-032 have legitimate refunds that are
+        # correctly reflected in both the refunds table AND the settlement amount.
+        # This means the matcher should find ZERO delta for these (clean reconciliation).
+        if order_id == "ORD-005":
+            refund_amt_normal = 500.0
+            refunds.append(("REF-002", order_id, vendor_id, refund_amt_normal, "2026-07-10"))
+            actual_settlement_amount = round(actual_settlement_amount - refund_amt_normal, 2)
+        elif order_id == "ORD-032":
+            refund_amt_normal = 1200.0
+            refunds.append(("REF-003", order_id, vendor_id, refund_amt_normal, "2026-08-12"))
+            actual_settlement_amount = round(actual_settlement_amount - refund_amt_normal, 2)
+
         # Apply specific seeded corruptions for edge cases
         if order_id == "ORD-001":
             # Seeded Case 1: Settlement applied August rate (7%) instead of July rate (10%)
@@ -295,9 +307,6 @@ def generate_data(conn: sqlite3.Connection):
             comm_deducted, tcs_deducted, tds_deducted, logistics
         ))
 
-    # Add a couple ordinary refunds
-    refunds.append(("REF-002", "ORD-005", "VEND-005", 500.0, "2026-07-10"))
-    refunds.append(("REF-003", "ORD-032", "VEND-008", 1200.0, "2026-08-12"))
 
     cursor.executemany(
         "INSERT INTO orders (order_id, vendor_id, order_date, gross_amount, category, is_split_eligible) VALUES (?, ?, ?, ?, ?, ?)",

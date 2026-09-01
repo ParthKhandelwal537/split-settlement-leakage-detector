@@ -11,6 +11,25 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from src.matcher import run_matcher
 
 
+def _compute_confidence(delta: float, gross: float, has_corroboration: bool, is_structural: bool) -> float:
+    """
+    Dynamic confidence scoring based on:
+    - Delta as % of gross amount (larger relative delta = higher confidence it's real)
+    - Whether corroborating evidence exists (e.g., filed_date confirms timing)
+    - Structural exceptions get a floor of 0.90
+    Returns a score clamped to [0.50, 1.00].
+    """
+    if is_structural:
+        return round(min(1.0, 0.90 + abs(delta) / max(gross, 1) * 0.1), 3)
+    
+    # Base: ratio of delta to gross
+    ratio = abs(delta) / max(gross, 1)
+    base = 0.60 + ratio * 3.0  # small ratios stay low, big ratios push high
+    if has_corroboration:
+        base += 0.12
+    return round(min(1.0, max(0.50, base)), 3)
+
+
 def classify_exceptions(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
     """
     Classifies discrepancies into exactly 3 buckets:
@@ -75,14 +94,15 @@ def classify_exceptions(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
         if is_split_eligible == 0:
             exception_id = f"EXC-{exc_idx:03d}"
             exc_idx += 1
+            split_impact = float(row["gross_amount"])
             exc_obj = {
                 "exception_id": exception_id,
                 "order_id": order_id,
                 "exception_type": "structural/compliance",
                 "reason": f"Order {order_id} flagged as ineligible for split settlement under marketplace compliance rules.",
-                "confidence_score": 0.95,
+                "confidence_score": _compute_confidence(split_impact, split_impact, True, True),
                 "status": "pending",
-                "rupee_impact": float(row["gross_amount"]),
+                "rupee_impact": split_impact,
                 "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             exceptions.append(exc_obj)
@@ -114,12 +134,14 @@ def classify_exceptions(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
                     f"TCS credit of ₹{abs(tcs_delta):,.2f} missing during settlement on {settlement_date} "
                     f"due to pending GSTR-8 filing (filed on {filed_date or 'PENDING'}). Timing difference, not leakage."
                 )
+                tax_conf = _compute_confidence(abs(tcs_delta), float(row["gross_amount"]),
+                                               has_corroboration=(filed_date is not None), is_structural=False)
                 exc_obj = {
                     "exception_id": exception_id,
                     "order_id": order_id,
                     "exception_type": "tax-timing",
                     "reason": reason_str,
-                    "confidence_score": 0.90,
+                    "confidence_score": tax_conf,
                     "status": "pending",
                     "rupee_impact": abs(tcs_delta),
                     "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -149,12 +171,15 @@ def classify_exceptions(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
                 reason_str = f"Settlement payout math mismatch: Expected ₹{row['expected_payout']:,.2f}, Actual ₹{row['actual_payout']:,.2f} (Delta ₹{payout_delta:,.2f})."
                 impact = abs(payout_delta)
 
+            math_conf = _compute_confidence(impact, float(row["gross_amount"]),
+                                             has_corroboration=(abs(comm_delta) > 0.01 or refund_amt > 0),
+                                             is_structural=False)
             exc_obj = {
                 "exception_id": exception_id,
                 "order_id": order_id,
                 "exception_type": "settlement-math",
                 "reason": reason_str,
-                "confidence_score": 0.92,
+                "confidence_score": math_conf,
                 "status": "pending",
                 "rupee_impact": impact,
                 "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
