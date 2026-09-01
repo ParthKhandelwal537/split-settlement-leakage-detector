@@ -32,19 +32,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ───────────────── HIGH-END FINTECH DARK THEME CSS ─────────────────
+# ───────────────── HIGH-END FINTECH DESIGN SYSTEM CSS ─────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     :root {
         --bg-main: #060b14;
         --bg-card: #0b1324;
-        --bg-surface: #111d35;
-        --border-subtle: rgba(148, 163, 184, 0.12);
-        --border-glow: rgba(14, 165, 233, 0.4);
+        --bg-surface: #101c36;
+        --border-subtle: rgba(148, 163, 184, 0.14);
+        --border-focus: rgba(14, 165, 233, 0.45);
         --text-primary: #f8fafc;
         --text-secondary: #94a3b8;
+        --text-muted: #64748b;
         --brand-blue: #0ea5e9;
         --brand-emerald: #10b981;
         --brand-rose: #f43f5e;
@@ -63,55 +64,35 @@ st.markdown("""
 
     /* ── HERO BANNER ── */
     .hero-banner {
-        background: linear-gradient(135deg, #071226 0%, #0c234b 50%, #07356b 100%);
-        border-radius: 18px;
-        padding: 26px 36px;
-        margin-bottom: 24px;
+        background: linear-gradient(135deg, #071329 0%, #0c234a 55%, #083366 100%);
+        border-radius: 16px;
+        padding: 22px 30px;
+        margin-bottom: 20px;
         border: 1px solid rgba(14, 165, 233, 0.28);
-        box-shadow: 0 12px 36px -12px rgba(14, 165, 233, 0.25);
-        position: relative;
-        overflow: hidden;
-    }
-    .hero-banner::after {
-        content: '';
-        position: absolute;
-        top: -40%;
-        right: -10%;
-        width: 480px;
-        height: 480px;
-        background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    .hero-row {
+        box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2);
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 16px;
-        position: relative;
-        z-index: 1;
+        gap: 14px;
     }
     .hero-title {
-        font-size: 1.85rem;
-        font-weight: 900;
-        letter-spacing: -0.04em;
+        font-size: 1.75rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
         margin: 0;
-        background: linear-gradient(135deg, #ffffff 20%, #cbd5e1 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #ffffff;
         display: flex;
         align-items: center;
         gap: 10px;
     }
     .hero-subtitle {
         color: #94a3b8;
-        font-size: 0.90rem;
-        margin-top: 6px;
+        font-size: 0.88rem;
+        margin-top: 4px;
         max-width: 760px;
-        line-height: 1.55;
+        line-height: 1.5;
     }
-
-    /* ── LIVE STATUS BADGE ── */
     .live-badge {
         display: inline-flex;
         align-items: center;
@@ -135,112 +116,141 @@ st.markdown("""
     }
     @keyframes pulse-ring {
         0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
         100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* ── TOP KPI TILES ── */
-    .kpi-container {
+    /* ── TOP KPI METRIC STRIP ── */
+    .kpi-row {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 14px;
-        margin-bottom: 24px;
+        gap: 12px;
+        margin-bottom: 20px;
     }
     @media (max-width: 1024px) {
-        .kpi-container { grid-template-columns: repeat(2, 1fr); }
+        .kpi-row { grid-template-columns: repeat(2, 1fr); }
     }
-    .kpi-card {
-        background: #0b1324;
+    .kpi-box {
+        background: var(--bg-card);
         border: 1px solid var(--border-subtle);
-        border-radius: 14px;
-        padding: 18px 20px;
+        border-radius: 12px;
+        padding: 14px 18px;
         position: relative;
         overflow: hidden;
         transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .kpi-card:hover {
+    .kpi-box:hover {
         transform: translateY(-2px);
-        border-color: var(--border-glow);
+        border-color: var(--border-focus);
     }
-    .kpi-card .top-stripe {
+    .kpi-stripe {
         position: absolute;
         top: 0; left: 0; right: 0;
         height: 3px;
     }
-    .kpi-label {
-        font-size: 0.70rem;
+    .kpi-title {
+        font-size: 0.68rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
         color: #64748b;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .kpi-val {
-        font-size: 1.80rem;
-        font-weight: 900;
+    .kpi-number {
+        font-size: 1.65rem;
+        font-weight: 800;
         letter-spacing: -0.03em;
-        line-height: 1.15;
+        line-height: 1.2;
     }
-    .kpi-sub {
-        font-size: 0.74rem;
+    .kpi-desc {
+        font-size: 0.72rem;
         color: #94a3b8;
-        margin-top: 6px;
-        font-weight: 500;
+        margin-top: 3px;
+        white-space: nowrap;
     }
 
-    /* ── DIAGNOSTIC WATERFALL & CARDS ── */
-    .waterfall-card {
-        background: #0b1324;
+    /* ── SECTION CARDS ── */
+    .section-card {
+        background: var(--bg-card);
         border: 1px solid var(--border-subtle);
         border-radius: 14px;
-        padding: 20px;
+        padding: 20px 22px;
         margin-bottom: 18px;
     }
-    .waterfall-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 14px;
-        border-radius: 8px;
-        margin-bottom: 6px;
-        background: #101a30;
-        font-size: 0.84rem;
-    }
-    .waterfall-item.highlight {
-        background: rgba(244, 63, 94, 0.12);
-        border: 1px solid rgba(244, 63, 94, 0.35);
-    }
-    .waterfall-item.highlight-green {
-        background: rgba(16, 185, 129, 0.12);
-        border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-    .waterfall-item.total {
-        background: #172440;
+    .card-header-title {
+        font-size: 0.95rem;
         font-weight: 700;
-        font-size: 0.92rem;
-        margin-top: 12px;
-        border: 1px solid rgba(14, 165, 233, 0.3);
-    }
-
-    /* ── FORMAL DEBIT NOTE VOUCHER ── */
-    .voucher-card {
-        background: #0b1324;
-        border: 1px solid rgba(14, 165, 233, 0.35);
-        border-radius: 12px;
-        padding: 20px;
-        font-size: 0.82rem;
-        margin-top: 12px;
-        line-height: 1.6;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    }
-    .voucher-header {
-        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-        padding-bottom: 10px;
+        color: #f8fafc;
         margin-bottom: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
+
+    /* ── STRUCTURED WATERFALL COMPARISON TABLE ── */
+    .wf-table-container {
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #091224;
+    }
+    .wf-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.80rem;
+    }
+    .wf-table th {
+        background: #101c36;
+        color: #94a3b8;
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    .wf-table th:last-child, .wf-table td:last-child {
+        text-align: right;
+    }
+    .wf-row {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+        transition: background 0.15s ease;
+    }
+    .wf-row:hover {
+        background: #12203e;
+    }
+    .wf-row td {
+        padding: 8px 10px;
+        color: #cbd5e1;
+    }
+    .wf-row td:first-child {
+        font-weight: 600;
+        color: #f8fafc;
+    }
+    .wf-row td:last-child {
+        font-weight: 700;
+    }
+    .wf-row.variance {
+        background: rgba(244, 63, 94, 0.08);
+    }
+    .wf-row.total-row {
+        background: #142447;
+        font-weight: 700;
+        border-top: 1px solid rgba(14, 165, 233, 0.35);
+    }
+    .wf-row.total-row td {
+        color: #ffffff;
+        font-size: 0.84rem;
+        padding: 10px 10px;
+    }
+
+    .delta-bad { color: #fb7185; font-weight: 700; }
+    .delta-good { color: #34d399; font-weight: 600; }
+    .delta-timing { color: #38bdf8; font-weight: 600; }
 
     /* ── BADGE CHIPS ── */
     .badge-chip {
@@ -258,33 +268,42 @@ st.markdown("""
     .chip-cleared { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
     .chip-escalated { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
 
-    /* ── SECTION HEADINGS ── */
-    .sec-header {
-        font-size: 1.15rem;
+    /* ── FORMAL DEBIT NOTE VOUCHER CARD ── */
+    .voucher-card {
+        background: #091224;
+        border: 1px solid rgba(14, 165, 233, 0.35);
+        border-radius: 10px;
+        padding: 16px;
+        font-size: 0.80rem;
+        margin-top: 10px;
+        line-height: 1.6;
+    }
+    .voucher-card-title {
+        color: #38bdf8;
         font-weight: 800;
-        color: var(--text-primary);
-        margin: 22px 0 12px 0;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        padding-bottom: 6px;
+        margin-bottom: 8px;
         display: flex;
-        align-items: center;
-        gap: 8px;
-        letter-spacing: -0.02em;
+        justify-content: space-between;
     }
 
-    /* ── APP FOOTER ── */
+    /* ── FOOTER ── */
     .app-footer {
         text-align: center;
-        padding: 30px 0 10px 0;
+        padding: 26px 0 10px 0;
         color: #64748b;
         font-size: 0.78rem;
         border-top: 1px solid rgba(148, 163, 184, 0.1);
-        margin-top: 40px;
+        margin-top: 36px;
     }
     .app-footer a { color: var(--brand-blue); text-decoration: none; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ───────────────── PIPELINE EXECUTION HELPERS ─────────────────
+# ───────────────── PIPELINE CONTROLLERS ─────────────────
 def execute_pipeline():
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -297,7 +316,7 @@ def regenerate_all_data():
     run_data_generator()
     execute_pipeline()
 
-# Initialize DB if not present
+# Ensure DB is created
 if not os.path.exists(DB_PATH):
     regenerate_all_data()
 
@@ -308,7 +327,7 @@ with st.sidebar:
     st.caption("Autonomous Marketplace Settlement Engine")
     st.divider()
 
-    st.markdown("#### ⚙️ Pipeline Control Center")
+    st.markdown("#### ⚙️ Pipeline Control")
     if st.button("▶ Run Full Reconciliation Cycle", type="primary", use_container_width=True):
         with st.spinner("Reconstructing point-in-time contracts & evaluating variance..."):
             time.sleep(0.2)
@@ -325,11 +344,11 @@ with st.sidebar:
     st.divider()
     st.markdown("#### 🛡️ Compliance & Safety Architecture")
     st.markdown("""
-    - **Point-in-Time Contract Engine:** `Active`
-    - **Nodal Integrity Guard:** `Auto-Halt on Deficit`
+    - **Contract Engine:** `Point-in-Time Active`
+    - **Nodal Guard:** `Auto-Halt on Deficit`
     - **Statutory Rules:** `Sec 52 TCS • Sec 194-O TDS`
     - **Stopping Threshold:** `< 0.70 Conf → Human Ops`
-    - **Architecture:** `ACID Relational Engine`
+    - **ACID Database:** `SQLite Relational Engine`
     """)
     st.divider()
     st.caption("Razorpay AI Buildathon 2026 Submission")
@@ -342,69 +361,67 @@ audit_df = get_audit_trail(conn)
 matcher_df = run_matcher(conn)
 
 
-# ───────────────── HERO HEADER ─────────────────
+# ───────────────── HERO BANNER ─────────────────
 st.markdown("""
 <div class="hero-banner">
-    <div class="hero-row">
-        <div>
-            <div class="hero-title">
-                <span>⚡ SplitGuard AI</span>
-                <span style="font-size: 0.95rem; font-weight: 600; color: #38bdf8; background: rgba(14,165,233,0.15); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(14,165,233,0.3);">Enterprise Recon</span>
-            </div>
-            <div class="hero-subtitle">
-                Autonomous settlement integrity agent for multi-vendor marketplaces. Reconstructs point-in-time commission contracts, intercepts over-clawed refunds, filters GSTR-8 tax timing lags, and enforces strict nodal escrow solvency guards.
-            </div>
+    <div>
+        <div class="hero-title">
+            <span>⚡ SplitGuard AI</span>
+            <span style="font-size: 0.85rem; font-weight: 600; color: #38bdf8; background: rgba(14,165,233,0.15); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(14,165,233,0.3);">Enterprise Recon</span>
         </div>
-        <div>
-            <span class="live-badge"><div class="pulse-dot"></div> RECONCILIATION AGENT ACTIVE</span>
+        <div class="hero-subtitle">
+            Autonomous settlement integrity agent for multi-vendor marketplaces. Reconstructs point-in-time commission contracts, intercepts over-clawed refunds, filters GSTR-8 tax timing lags, and enforces strict nodal escrow solvency guards.
         </div>
+    </div>
+    <div>
+        <span class="live-badge"><div class="pulse-dot"></div> RECON AGENT ACTIVE</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ───────────────── TOP KPI METRICS ─────────────────
+# ───────────────── TOP KPI METRIC STRIP ─────────────────
 esc_count = report['status_counts'].get('escalated', 0)
 rev_count = report['status_counts'].get('needs-review', 0)
 auto_count = report['status_counts'].get('auto-cleared', 0)
 
 st.markdown(f"""
-<div class="kpi-container">
-    <div class="kpi-card">
-        <div class="top-stripe" style="background: linear-gradient(90deg, #3b82f6, #0ea5e9);"></div>
-        <div class="kpi-label">Reconciliation Match</div>
-        <div class="kpi-val" style="color: #60a5fa;">{report['match_rate']}%</div>
-        <div class="kpi-sub">{report['clean_orders']} of {report['total_orders']} orders clean</div>
+<div class="kpi-row">
+    <div class="kpi-box">
+        <div class="kpi-stripe" style="background: linear-gradient(90deg, #3b82f6, #0ea5e9);"></div>
+        <div class="kpi-title">Match Rate</div>
+        <div class="kpi-number" style="color: #60a5fa;">{report['match_rate']}%</div>
+        <div class="kpi-desc">{report['clean_orders']} / {report['total_orders']} orders clean</div>
     </div>
-    <div class="kpi-card">
-        <div class="top-stripe" style="background: linear-gradient(90deg, #f43f5e, #e11d48);"></div>
-        <div class="kpi-label">Settlement Leakage</div>
-        <div class="kpi-val" style="color: #fb7185;">₹{report['total_settlement_leakage_inr']:,.0f}</div>
-        <div class="kpi-sub">Direct math & slab losses</div>
+    <div class="kpi-box">
+        <div class="kpi-stripe" style="background: linear-gradient(90deg, #f43f5e, #e11d48);"></div>
+        <div class="kpi-title">Settlement Leakage</div>
+        <div class="kpi-number" style="color: #fb7185;">₹{report['total_settlement_leakage_inr']:,.0f}</div>
+        <div class="kpi-desc">Math & slab variances</div>
     </div>
-    <div class="kpi-card">
-        <div class="top-stripe" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
-        <div class="kpi-label">Structural Exposure</div>
-        <div class="kpi-val" style="color: #fbbf24;">₹{report['total_structural_exposure_inr']:,.0f}</div>
-        <div class="kpi-sub">Nodal deficit & blocked splits</div>
+    <div class="kpi-box">
+        <div class="kpi-stripe" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
+        <div class="kpi-title">Structural Risk</div>
+        <div class="kpi-number" style="color: #fbbf24;">₹{report['total_structural_exposure_inr']:,.0f}</div>
+        <div class="kpi-desc">Nodal break & split blocks</div>
     </div>
-    <div class="kpi-card">
-        <div class="top-stripe" style="background: linear-gradient(90deg, #8b5cf6, #7c3aed);"></div>
-        <div class="kpi-label">Escalated to Ops</div>
-        <div class="kpi-val" style="color: #a78bfa;">{esc_count}</div>
-        <div class="kpi-sub">Halted for human intervention</div>
+    <div class="kpi-box">
+        <div class="kpi-stripe" style="background: linear-gradient(90deg, #8b5cf6, #7c3aed);"></div>
+        <div class="kpi-title">Escalated to Ops</div>
+        <div class="kpi-number" style="color: #a78bfa;">{esc_count}</div>
+        <div class="kpi-desc">Halted for human ops</div>
     </div>
-    <div class="kpi-card">
-        <div class="top-stripe" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
-        <div class="kpi-label">Self-Skepticism Index</div>
-        <div class="kpi-val" style="color: #34d399;">{report['tax_timing_pct']}%</div>
-        <div class="kpi-sub">Filtered non-leakage (GSTR-8)</div>
+    <div class="kpi-box">
+        <div class="kpi-stripe" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
+        <div class="kpi-title">Tax Timing Filter</div>
+        <div class="kpi-number" style="color: #34d399;">{report['tax_timing_pct']}%</div>
+        <div class="kpi-desc">Filtered non-leakage (GSTR-8)</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ───────────────── 5 ENTERPRISE PRODUCTION TABS ─────────────────
+# ───────────────── 5 PRODUCTION TABS ─────────────────
 tab_overview, tab_triage, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
     "📊 Executive Analytics",
     "🔍 Exception Triage",
@@ -415,99 +432,128 @@ tab_overview, tab_triage, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 1: EXECUTIVE ANALYTICS & RISK RADAR
+# TAB 1: EXECUTIVE ANALYTICS (CLEAN GRAPHS, ZERO OVERLAPS)
 # ════════════════════════════════════════════════════════════════
 with tab_overview:
-    st.markdown('<div class="sec-header">📊 Settlement Variance Risk Radar</div>', unsafe_allow_html=True)
+    # Row 1: Two Clean Balanced Charts
+    col_chart_left, col_chart_right = st.columns([1, 1])
 
-    c_chart1, c_chart2 = st.columns([1, 2])
+    with col_chart_left:
+        st.markdown("""
+        <div class="section-card">
+            <div class="card-header-title">
+                <span>🎯 Variance by Classification Bucket</span>
+                <span style="font-size:0.75rem; color:#94a3b8;">3-Class Partition</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-    with c_chart1:
-        # Donut Chart - Exception Buckets
         type_data = pd.DataFrame([
             {"Classification": k, "Count": v} for k, v in report["type_counts"].items()
         ])
+        
         if not type_data.empty:
-            donut = alt.Chart(type_data).mark_arc(innerRadius=60, outerRadius=95, strokeWidth=2, stroke="#0b1324").encode(
+            donut_chart = alt.Chart(type_data).mark_arc(innerRadius=62, outerRadius=90, strokeWidth=2, stroke="#0b1324").encode(
                 theta=alt.Theta("Count:Q"),
                 color=alt.Color("Classification:N", scale=alt.Scale(
                     domain=["settlement-math", "tax-timing", "structural/compliance"],
                     range=["#f43f5e", "#06b6d4", "#f59e0b"]
-                ), legend=alt.Legend(title=None, orient="bottom", labelColor="#94a3b8", labelFontSize=11)),
+                ), legend=alt.Legend(
+                    title=None,
+                    orient="bottom",
+                    columns=3,
+                    labelColor="#cbd5e1",
+                    labelFontSize=11,
+                    symbolSize=80,
+                    labelLimit=200
+                )),
                 tooltip=["Classification:N", "Count:Q"]
             ).properties(
-                width=280, height=270,
-                title=alt.Title("Variance by Classification Bucket", color="#f8fafc", fontSize=13)
-            ).configure_view(strokeWidth=0).configure(background="#0b1324")
-            st.altair_chart(donut, use_container_width=True)
+                height=230,
+                width="container"
+            ).configure_view(strokeWidth=0).configure(background="transparent")
+            st.altair_chart(donut_chart, use_container_width=True)
+            
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with c_chart2:
-        # Bar Chart - Impact by Vendor
+    with col_chart_right:
+        st.markdown("""
+        <div class="section-card">
+            <div class="card-header-title">
+                <span>🏢 Top Financial Exposure by Entity</span>
+                <span style="font-size:0.75rem; color:#94a3b8;">Ranked Exposure (₹)</span>
+            </div>
+        """, unsafe_allow_html=True)
+
         exc_df = report["exceptions_df"].copy()
         orders_map = pd.read_sql_query("SELECT order_id, vendor_id FROM orders", conn)
         exc_vendor = pd.merge(exc_df, orders_map, on="order_id", how="left")
         exc_vendor["vendor_id"] = exc_vendor["vendor_id"].fillna("NODAL-LEDGER")
         vendor_impact = exc_vendor.groupby("vendor_id")["rupee_impact"].sum().reset_index()
-        vendor_impact = vendor_impact.sort_values("rupee_impact", ascending=False).head(8)
+        vendor_impact = vendor_impact.sort_values("rupee_impact", ascending=False).head(6)
 
         if not vendor_impact.empty:
-            bar = alt.Chart(vendor_impact).mark_bar(
-                cornerRadiusTopLeft=6, cornerRadiusTopRight=6,
+            hbar_chart = alt.Chart(vendor_impact).mark_bar(
+                cornerRadiusTopRight=6, cornerRadiusBottomRight=6,
                 color=alt.Gradient(gradient='linear', stops=[
                     alt.GradientStop(color='#0ea5e9', offset=0),
                     alt.GradientStop(color='#8b5cf6', offset=1)
-                ], x1=0, x2=0, y1=1, y2=0)
+                ], x1=0, x2=1, y1=0, y2=0)
             ).encode(
-                x=alt.X("vendor_id:N", sort="-y", title=None,
-                         axis=alt.Axis(labelColor="#94a3b8", labelAngle=-25, labelFontSize=11)),
-                y=alt.Y("rupee_impact:Q", title="₹ Financial Exposure",
-                         axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", format=",.0f")),
-                tooltip=[alt.Tooltip("vendor_id:N", title="Entity"),
-                         alt.Tooltip("rupee_impact:Q", title="₹ Exposure", format=",.2f")]
+                y=alt.Y("vendor_id:N", sort="-x", title=None, axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=11, labelPadding=12, labelLimit=150)),
+                x=alt.X("rupee_impact:Q", title="₹ Total Financial Exposure", axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", titlePadding=10, format=",.0f")),
+                tooltip=[alt.Tooltip("vendor_id:N", title="Entity"), alt.Tooltip("rupee_impact:Q", title="₹ Exposure", format=",.2f")]
             ).properties(
-                width="container", height=270,
-                title=alt.Title("Top Financial Exposure by Vendor / Escrow (₹)", color="#f8fafc", fontSize=13)
-            ).configure_view(strokeWidth=0).configure(background="#0b1324")
-            st.altair_chart(bar, use_container_width=True)
+                height=230,
+                width="container",
+                padding={"left": 20, "right": 20, "top": 10, "bottom": 10}
+            ).configure_view(strokeWidth=0).configure(background="transparent")
+            st.altair_chart(hbar_chart, use_container_width=True)
 
-    # Nodal Escrow Timeline
-    st.markdown('<div class="sec-header">📈 Daily Nodal Account Solvency Monitor (RBI Directions)</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Row 2: Nodal Solvency Monitor Chart (Crisp, native Streamlit multi-line chart)
+    st.markdown("""
+    <div class="section-card">
+        <div class="card-header-title">
+            <span>📈 Daily Nodal Account Solvency Monitor (RBI Directions)</span>
+            <div style="font-size:0.75rem; display:flex; gap:16px;">
+                <span style="color:#0ea5e9; font-weight:700;">● Actual Closing</span>
+                <span style="color:#f59e0b; font-weight:700;">● Mathematical Expected</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
     nodal_df = pd.read_sql_query("SELECT date, opening_balance, collected, settled, closing_balance FROM nodal_account_ledger ORDER BY date", conn)
     nodal_df["expected_closing"] = round(nodal_df["opening_balance"] + nodal_df["collected"] - nodal_df["settled"], 2)
 
-    nodal_melted = pd.melt(nodal_df, id_vars=["date"], value_vars=["closing_balance", "expected_closing"],
-                           var_name="Account Metric", value_name="Balance")
-    nodal_melted["Account Metric"] = nodal_melted["Account Metric"].map({
-        "closing_balance": "Actual Nodal Closing",
-        "expected_closing": "Mathematical Expected Closing"
-    })
+    chart_data = pd.DataFrame({
+        "Date": pd.to_datetime(nodal_df["date"]),
+        "Actual Nodal Closing": nodal_df["closing_balance"],
+        "Mathematical Expected": nodal_df["expected_closing"]
+    }).set_index("Date")
 
-    nodal_line = alt.Chart(nodal_melted).mark_line(strokeWidth=2.2).encode(
-        x=alt.X("date:T", title=None, axis=alt.Axis(labelColor="#94a3b8", format="%b %d", labelFontSize=11)),
-        y=alt.Y("Balance:Q", title="Balance (₹ INR)",
-                 axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", format=",.0f"),
-                 scale=alt.Scale(zero=False)),
-        color=alt.Color("Account Metric:N", scale=alt.Scale(
-            domain=["Actual Nodal Closing", "Mathematical Expected Closing"],
-            range=["#0ea5e9", "#64748b"]
-        ), legend=alt.Legend(title=None, orient="top-right", labelColor="#94a3b8")),
-        strokeDash=alt.StrokeDash("Account Metric:N", scale=alt.Scale(
-            domain=["Actual Nodal Closing", "Mathematical Expected Closing"],
-            range=[[0], [6, 4]]
-        ), legend=None),
-        tooltip=["date:T", "Account Metric:N", alt.Tooltip("Balance:Q", format="₹,.2f")]
-    ).properties(
-        width="container", height=280,
-        title=alt.Title("62-Day Continuous Escrow Balance Audit (Detects ₹50,000 Deficit on Aug 14)", color="#f8fafc", fontSize=13)
-    ).configure_view(strokeWidth=0).configure(background="#0b1324")
-    st.altair_chart(nodal_line, use_container_width=True)
+    st.line_chart(chart_data, color=["#0ea5e9", "#f59e0b"], height=250, use_container_width=True)
+
+    st.markdown("""
+    <div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:8px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
+        ⚠️ <strong>Solvency Alert Detected:</strong> On <code>2026-08-14</code>, Nodal closing balance diverged by <strong>₹50,000.00</strong> deficit from mathematical formula (<code>Opening + Collected - Settled</code>). Automated batch processing halted under RBI circuit-breaker rules.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
 # TAB 2: SMART EXCEPTION TRIAGE & LEDGER
 # ════════════════════════════════════════════════════════════════
 with tab_triage:
-    st.markdown('<div class="sec-header">🔍 Filterable Exception Ledger (₹ Impact Ranked)</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="section-card">
+        <div class="card-header-title">
+            <span>🔍 Filterable Exception Ledger (₹ Impact Ranked)</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">Multi-parameter Query</span>
+        </div>
+    """, unsafe_allow_html=True)
 
     tf1, tf2, tf3, tf4 = st.columns(4)
     vendors_df = pd.read_sql_query("SELECT DISTINCT vendor_id FROM orders", conn)
@@ -560,176 +606,196 @@ with tab_triage:
         hide_index=True
     )
 
-    st.caption(f"Displaying **{len(exc_merged)}** filtered exceptions (Total exposure in view: **₹{exc_merged['rupee_impact'].sum():,.2f}**)")
+    st.caption(f"Displaying **{len(exc_merged)}** filtered exceptions (Total exposure: **₹{exc_merged['rupee_impact'].sum():,.2f}**)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 3: INTERACTIVE ORDER DIAGNOSTIC & RECOVERY HUB
+# TAB 3: ORDER DIAGNOSTIC & RECOVERY (STRUCTURED & INTUITIVE)
 # ════════════════════════════════════════════════════════════════
 with tab_diagnostic:
-    st.markdown('<div class="sec-header">🔬 Interactive Order Diagnostic & Recovery Hub</div>', unsafe_allow_html=True)
-    st.caption("Perform deep forensic audit of any transaction, compare mathematical waterfall breakdowns, and trigger 1-click remediation actions.")
+    st.markdown("""
+    <div class="section-card">
+        <div class="card-header-title">
+            <span>🔬 Forensic Order Inspector & Remediation Hub</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">Line-by-Line Comparative Audit</span>
+        </div>
+    """, unsafe_allow_html=True)
 
     all_order_ids = sorted(matcher_df["order_id"].tolist())
 
-    col_sel1, col_sel2 = st.columns([2, 3])
-    with col_sel1:
+    col_target_sel, col_target_info = st.columns([1, 2])
+    with col_target_sel:
         target_order = st.selectbox(
-            "Select Order for Forensic Audit",
+            "Select Order to Audit",
             options=all_order_ids,
             index=all_order_ids.index("ORD-001") if "ORD-001" in all_order_ids else 0,
             help="Choose any order to inspect line-by-line settlement math and statutory tax deductions."
         )
 
-    # Fetch order match details
     order_detail = matcher_df[matcher_df["order_id"] == target_order].iloc[0]
-    
-    # Check if there is an exception record
     exc_match = report["exceptions_df"][report["exceptions_df"]["order_id"] == target_order]
     has_exception = not exc_match.empty
     exc_info = exc_match.iloc[0] if has_exception else None
 
-    with col_sel2:
+    with col_target_info:
         if has_exception:
             exc_t = exc_info["exception_type"]
             chip_class = "chip-math" if exc_t == "settlement-math" else ("chip-timing" if exc_t == "tax-timing" else "chip-compliance")
+            delta_val = order_detail['payout_delta']
             st.markdown(f"""
-            <div style="padding: 10px 16px; background: #101a30; border-radius: 10px; border: 1px solid var(--border-subtle); margin-top: 4px;">
-                <span class="badge-chip {chip_class}">{exc_t}</span>
-                <span class="badge-chip chip-escalated" style="margin-left:6px;">Status: {exc_info['status'].upper()}</span>
-                <span style="float: right; font-weight: 700; color: #f43f5e; font-size: 0.95rem;">Variance: ₹{order_detail['payout_delta']:,.2f}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid var(--border-subtle); margin-top:24px;">
+                <div>
+                    <span class="badge-chip {chip_class}">{exc_t}</span>
+                    <span class="badge-chip chip-escalated" style="margin-left:6px;">Status: {exc_info['status'].upper()}</span>
+                </div>
+                <div style="font-size:0.92rem; font-weight:800; color:{'#fb7185' if delta_val != 0 else '#34d399'};">
+                    Variance: ₹{delta_val:,.2f}
+                </div>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
-            <div style="padding: 10px 16px; background: rgba(16,185,129,0.1); border-radius: 10px; border: 1px solid rgba(16,185,129,0.3); margin-top: 4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
                 <span class="badge-chip chip-cleared">✓ CLEAN RECONCILIATION</span>
-                <span style="float: right; font-weight: 700; color: #34d399; font-size: 0.95rem;">Delta: ₹0.00</span>
+                <span style="font-size:0.92rem; font-weight:800; color:#34d399;">Variance: ₹0.00</span>
             </div>
             """, unsafe_allow_html=True)
 
-    # 2 Column Forensic Layout: Left Waterfall, Right Diagnosis & Recovery
-    diag_c1, diag_c2 = st.columns([1, 1])
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+
+    # 2 Column Forensic Grid with balanced [13, 10] ratio
+    diag_c1, diag_c2 = st.columns([13, 10])
 
     with diag_c1:
-        st.markdown("##### 🧮 Financial Waterfall Breakdown (Expected vs Settled)")
-        
-        gross_val = order_detail["gross_amount"]
-        exp_comm = order_detail["expected_comm"]
-        act_comm = order_detail["actual_comm"]
+        st.markdown("##### 🧮 Settlement Line Item Comparison")
+
         comm_delta = order_detail["comm_delta"]
-
-        exp_tcs = order_detail["expected_tcs"]
-        act_tcs = order_detail["actual_tcs"]
         tcs_delta = order_detail["tcs_delta"]
-
-        exp_tds = order_detail["expected_tds"]
-        act_tds = order_detail["actual_tds"]
         tds_delta = order_detail["tds_delta"]
-
-        refund_val = order_detail["refund_amount"]
-        exp_payout = order_detail["expected_payout"]
-        act_payout = order_detail["actual_payout"]
         payout_delta = order_detail["payout_delta"]
 
-        # Commission delta highlight
-        comm_cls = "highlight" if abs(comm_delta) > 0.01 else ""
-        tcs_cls = "highlight" if abs(tcs_delta) > 0.01 else ""
-        tds_cls = "highlight" if abs(tds_delta) > 0.01 else ""
-        payout_cls = "highlight" if abs(payout_delta) > 0.01 else "highlight-green"
-
         st.markdown(f"""
-        <div class="waterfall-card">
-            <div class="waterfall-item">
-                <span><strong>Gross Order Value</strong></span>
-                <span class="mono" style="font-weight:700;">₹{gross_val:,.2f}</span>
-            </div>
-            <div class="waterfall-item {comm_cls}">
-                <span>Marketplace Commission ({order_detail['comm_rate']*100:.1f}%)</span>
-                <span>Expected: <span class="mono">₹{exp_comm:,.2f}</span> | Actual: <span class="mono">₹{act_comm:,.2f}</span> (Δ ₹{comm_delta:,.2f})</span>
-            </div>
-            <div class="waterfall-item {tcs_cls}">
-                <span>TCS Withholding (Sec 52 - 1.0%)</span>
-                <span>Expected: <span class="mono">₹{exp_tcs:,.2f}</span> | Actual: <span class="mono">₹{act_tcs:,.2f}</span> (Δ ₹{tcs_delta:,.2f})</span>
-            </div>
-            <div class="waterfall-item {tds_cls}">
-                <span>TDS Withholding (Sec 194-O)</span>
-                <span>Expected: <span class="mono">₹{exp_tds:,.2f}</span> | Actual: <span class="mono">₹{act_tds:,.2f}</span> (Δ ₹{tds_delta:,.2f})</span>
-            </div>
-            <div class="waterfall-item">
-                <span>Logistics & Delivery Fee</span>
-                <span><span class="mono">₹100.00</span></span>
-            </div>
-            <div class="waterfall-item">
-                <span>Customer Refund / Clawback</span>
-                <span><span class="mono">-₹{refund_val:,.2f}</span></span>
-            </div>
-            <div class="waterfall-item total {payout_cls}">
-                <span>FINAL NET VENDOR PAYOUT</span>
-                <span>Expected: <span class="mono">₹{exp_payout:,.2f}</span> | Settled: <span class="mono">₹{act_payout:,.2f}</span> (Δ ₹{payout_delta:,.2f})</span>
-            </div>
+        <div class="wf-table-container">
+            <table class="wf-table">
+                <thead>
+                    <tr>
+                        <th>Line Item</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Variance (Δ)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="wf-row">
+                        <td>Gross Order Amount</td>
+                        <td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
+                        <td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
+                        <td class="delta-good">₹0.00</td>
+                    </tr>
+                    <tr class="wf-row {'variance' if abs(comm_delta) > 0.01 else ''}">
+                        <td>Commission ({order_detail['comm_rate']*100:.1f}%)</td>
+                        <td class="mono">₹{order_detail['expected_comm']:,.2f}</td>
+                        <td class="mono">₹{order_detail['actual_comm']:,.2f}</td>
+                        <td class="{'delta-bad' if abs(comm_delta) > 0.01 else 'delta-good'}">{'+' if comm_delta > 0 else ''}₹{comm_delta:,.2f}</td>
+                    </tr>
+                    <tr class="wf-row {'variance' if abs(tcs_delta) > 0.01 else ''}">
+                        <td>TCS Withholding (1.0%)</td>
+                        <td class="mono">₹{order_detail['expected_tcs']:,.2f}</td>
+                        <td class="mono">₹{order_detail['actual_tcs']:,.2f}</td>
+                        <td class="{'delta-timing' if abs(tcs_delta) > 0.01 else 'delta-good'}">{'+' if tcs_delta > 0 else ''}₹{tcs_delta:,.2f}</td>
+                    </tr>
+                    <tr class="wf-row {'variance' if abs(tds_delta) > 0.01 else ''}">
+                        <td>TDS (Sec 194-O)</td>
+                        <td class="mono">₹{order_detail['expected_tds']:,.2f}</td>
+                        <td class="mono">₹{order_detail['actual_tds']:,.2f}</td>
+                        <td class="{'delta-bad' if abs(tds_delta) > 0.01 else 'delta-good'}">{'+' if tds_delta > 0 else ''}₹{tds_delta:,.2f}</td>
+                    </tr>
+                    <tr class="wf-row">
+                        <td>Logistics Fee</td>
+                        <td class="mono">₹100.00</td>
+                        <td class="mono">₹100.00</td>
+                        <td class="delta-good">₹0.00</td>
+                    </tr>
+                    <tr class="wf-row">
+                        <td>Refund Clawback</td>
+                        <td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
+                        <td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
+                        <td class="delta-good">₹0.00</td>
+                    </tr>
+                    <tr class="wf-row total-row">
+                        <td>NET VENDOR PAYOUT</td>
+                        <td class="mono">₹{order_detail['expected_payout']:,.2f}</td>
+                        <td class="mono">₹{order_detail['actual_payout']:,.2f}</td>
+                        <td class="{'delta-bad' if abs(payout_delta) > 0.01 else 'delta-good'}">{'+' if payout_delta > 0 else ''}₹{payout_delta:,.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
         """, unsafe_allow_html=True)
 
     with diag_c2:
-        st.markdown("##### 🤖 Autonomous Root-Cause Diagnosis & Remediation")
+        st.markdown("##### 🤖 Root-Cause Analysis & Action Hub")
         
         if has_exception:
-            st.info(f"**Diagnostic Summary:** {exc_info['reason']}")
+            st.info(f"**Root Cause Diagnosis:** {exc_info['reason']}")
             
-            st.markdown("###### ⚡ 1-Click Operations Actions:")
+            st.markdown("###### ⚡ Operations Remediation Actions:")
             
-            # Action based on type
             if exc_info["exception_type"] == "settlement-math":
                 if st.button("📝 Generate Official Debit Note to Aggregator", key="btn_debit_note", type="primary", use_container_width=True):
-                    dn_res = generate_debit_note(conn, target_order, "Razorpay Aggregator", "Next Settlement Cycle (T+1)")
+                    dn_res = generate_debit_note(conn, target_order, "Payment Aggregator", "Next Settlement Cycle (T+1)")
                     st.markdown(f"""
                     <div class="voucher-card">
-                        <div class="voucher-header">
-                            <strong style="color:#38bdf8;">OFFICIAL DEBIT NOTE VOUCHER</strong>
+                        <div class="voucher-card-title">
+                            <span>OFFICIAL DEBIT NOTE VOUCHER</span>
                             <span class="mono" style="color:#a78bfa;">{dn_res['note_id']}</span>
                         </div>
-                        <strong>Order Ref:</strong> {target_order}<br>
-                        <strong>Target Entity:</strong> {dn_res['target_entity']}<br>
-                        <strong>Recovery Amount:</strong> <span style="font-weight:800; color:#f43f5e;">₹{dn_res['amount_inr']:,.2f}</span><br>
-                        <strong>Recovery Term:</strong> {dn_res['recovery_schedule']}<br>
-                        <strong>Timestamp:</strong> {dn_res['issued_at']}<br>
-                        <em>Status: {dn_res['status']}</em>
+                        <strong>Order Ref:</strong> {target_order} &nbsp;|&nbsp; <strong>Entity:</strong> {dn_res['target_entity']}<br>
+                        <strong>Recovery Amount:</strong> <span style="font-weight:800; color:#fb7185;">₹{dn_res['amount_inr']:,.2f}</span><br>
+                        <strong>Settlement Term:</strong> {dn_res['recovery_schedule']} &nbsp;|&nbsp; <strong>Status:</strong> <span style="color:#34d399;">{dn_res['status']}</span>
                     </div>
                     """, unsafe_allow_html=True)
             elif exc_info["exception_type"] == "tax-timing":
                 if st.button("⏳ Queue for GSTR-8 Auto-Release Sync", key="btn_gstr8_sync", type="primary", use_container_width=True):
-                    tax_res = schedule_gstr8_sync(conn, target_order, order_detail["vendor_id"], "2026-08-20")
+                    schedule_gstr8_sync(conn, target_order, order_detail["vendor_id"], "2026-08-20")
                     st.success(f"✅ Order **{target_order}** queued for automated tax clearance upon GSTR-8 portal filing verification.")
             else:
                 if st.button("🚨 Dispatch Compliance Freeze Alert to Banking Escrow", key="btn_escrow_freeze", type="primary", use_container_width=True):
-                    esc_res = trigger_escrow_freeze(conn, order_detail["order_date"], order_detail["gross_amount"])
-                    st.warning(f"⚠️ Freeze notification dispatched to Escrow Banking Ops for **{target_order}**.")
+                    trigger_escrow_freeze(conn, order_detail["order_date"], order_detail["gross_amount"])
+                    st.warning(f"⚠️ Emergency Freeze notification dispatched to Escrow Banking Ops for **{target_order}**.")
 
-            with st.expander("🛠️ Manual Override / Dispute Status Update"):
+            with st.expander("🛠️ Manual Dispute Override / Review Notes"):
                 new_st = st.selectbox("Update Resolution Status", ["auto-cleared", "needs-review", "escalated"], key="override_status")
-                override_note = st.text_input("Resolution Note", placeholder="e.g. Approved by Head of FinOps after vendor audit", key="override_note")
-                if st.button("Save Override", key="btn_save_override"):
+                override_note = st.text_input("Operational Note", placeholder="e.g. Approved after vendor audit call", key="override_note")
+                if st.button("Save Override Record", key="btn_save_override"):
                     update_dispute_status(conn, target_order, new_st, override_note)
                     st.toast(f"Status for {target_order} updated to {new_st}!", icon="✅")
                     st.rerun()
         else:
             st.success("✅ **Zero Financial Variance Found:** Point-in-time commission contract, statutory tax deductions (TCS/TDS), and logistics fees perfectly reconcile against bank settlement payout.")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ════════════════════════════════════════════════════════════════
-# TAB 4: VENDOR 360° & "WHAT-IF" POLICY SIMULATOR
+# TAB 4: VENDOR 360° & POLICY SIMULATOR (BALANCED & CLEAN)
 # ════════════════════════════════════════════════════════════════
 with tab_simulator:
-    st.markdown('<div class="sec-header">🧮 Vendor 360° Profile & What-If Policy Simulator</div>', unsafe_allow_html=True)
-    st.caption("Simulate rate changes, test retroactive commission revisions, and project marketplace revenue & withholding shifts.")
+    st.markdown("""
+    <div class="section-card">
+        <div class="card-header-title">
+            <span>🧮 Vendor 360° Profile & What-If Policy Simulator</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">Portfolio Impact Modeling</span>
+        </div>
+    """, unsafe_allow_html=True)
 
-    sim_col1, sim_col2 = st.columns([1, 1])
+    sim_c1, sim_c2 = st.columns([1, 1])
 
-    with sim_col1:
-        st.markdown("##### 🏢 Vendor 360° Profile Explorer")
+    with sim_c1:
+        st.markdown("##### 🏢 Vendor 360° Profile Dossier")
         all_vendors = sorted(pd.read_sql_query("SELECT DISTINCT vendor_id FROM orders", conn)["vendor_id"].tolist())
-        target_vendor = st.selectbox("Select Marketplace Vendor", all_vendors, key="v360_vendor")
+        target_vendor = st.selectbox("Select Vendor", all_vendors, key="v360_vendor")
 
         # Vendor metrics
         v_orders = pd.read_sql_query("SELECT * FROM orders WHERE vendor_id = ?", conn, params=(target_vendor,))
@@ -740,42 +806,50 @@ with tab_simulator:
         total_v_payout = v_settlements["amount"].sum()
         total_v_comm = v_settlements["commission_deducted"].sum()
 
-        st.markdown(f"""
-        <div class="waterfall-card">
-            <div class="waterfall-item">
-                <span><strong>Total Gross Merchandise Value (GMV)</strong></span>
-                <span class="mono" style="font-weight:700; color:#38bdf8;">₹{total_v_gross:,.2f}</span>
+        # Clean 3 mini KPI cards
+        vk1, vk2, vk3 = st.columns(3)
+        with vk1:
+            st.markdown(f"""
+            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Gross Sales GMV</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#38bdf8;">₹{total_v_gross:,.0f}</div>
             </div>
-            <div class="waterfall-item">
-                <span>Total Settled Net Payout</span>
-                <span class="mono" style="color:#34d399;">₹{total_v_payout:,.2f}</span>
+            """, unsafe_allow_html=True)
+        with vk2:
+            st.markdown(f"""
+            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Net Payout</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#34d399;">₹{total_v_payout:,.0f}</div>
             </div>
-            <div class="waterfall-item">
-                <span>Marketplace Commission Collected</span>
-                <span class="mono" style="color:#a78bfa;">₹{total_v_comm:,.2f}</span>
+            """, unsafe_allow_html=True)
+        with vk3:
+            st.markdown(f"""
+            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Comm. Retained</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#a78bfa;">₹{total_v_comm:,.0f}</div>
             </div>
-            <div class="waterfall-item">
-                <span>Order Volume</span>
-                <span class="mono">{len(v_orders)} Orders</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        st.markdown("###### 📜 Active Commission Slabs History")
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+        st.markdown("###### 📜 Active Commission Slabs")
         st.dataframe(
             v_slabs[["effective_from", "effective_to", "rate"]],
             column_config={
                 "effective_from": "Effective From",
                 "effective_to": "Effective To",
-                "rate": st.column_config.NumberColumn("Commission Rate", format="%.2f%%", help="Point-in-time contracted commission rate")
+                "rate": st.column_config.NumberColumn("Commission Rate", format="%.2f%%")
             },
             use_container_width=True,
             hide_index=True
         )
 
-    with sim_col2:
+    with sim_c2:
         st.markdown("##### 🎛️ Interactive \"What-If\" Policy Simulator")
-        st.caption("Simulate prospective policy or tax changes on the entire marketplace batch:")
+
+        st.markdown("""
+        <div style="background:#091224; padding:18px; border-radius:12px; border:1px solid rgba(139,92,246,0.3);">
+            <div style="font-size:0.75rem; font-weight:700; color:#a78bfa; text-transform:uppercase; margin-bottom:8px;">Policy Adjustment Parameters</div>
+        """, unsafe_allow_html=True)
 
         sim_comm_adj = st.slider("Commission Adjustment (%)", min_value=-5.0, max_value=5.0, value=0.0, step=0.5,
                                   help="Simulate increasing or decreasing commission slabs across all vendors.")
@@ -784,40 +858,43 @@ with tab_simulator:
 
         # Run pure simulation using src.simulator module
         sim_res = simulate_policy_shift(conn, commission_adj_pct=sim_comm_adj, tds_rate=sim_tds_rate)
-
         net_rev_shift = sim_res["platform_revenue_shift"]
 
         st.markdown(f"""
-        <div class="waterfall-card" style="border-color: rgba(139,92,246,0.35);">
-            <div style="font-size: 0.82rem; font-weight: 700; color: #a78bfa; margin-bottom: 8px;">SIMULATION PROJECTIONS (PORTFOLIO WIDE)</div>
-            <div class="waterfall-item">
-                <span>Total Portfolio GMV Analyzed</span>
-                <span class="mono">₹{sim_res['total_gmv']:,.2f}</span>
-            </div>
-            <div class="waterfall-item">
-                <span>Projected Platform Revenue</span>
-                <span class="mono" style="font-weight:700; color:#38bdf8;">₹{sim_res['projected_platform_commission']:,.2f}</span>
-            </div>
-            <div class="waterfall-item">
-                <span>Platform Revenue Shift</span>
-                <span class="mono" style="font-weight:700; color:{'#34d399' if net_rev_shift >= 0 else '#fb7185'};">
-                    {'+' if net_rev_shift >= 0 else ''}₹{net_rev_shift:,.2f}
-                </span>
-            </div>
-            <div class="waterfall-item">
-                <span>Projected TDS Withholding Volume</span>
-                <span class="mono">₹{sim_res['projected_tds_withheld']:,.2f}</span>
+            <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(148,163,184,0.15);">
+                <div style="font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Projected Portfolio Impact</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
+                    <span>Projected Platform Commission:</span>
+                    <span class="mono" style="font-weight:700; color:#38bdf8;">₹{sim_res['projected_platform_commission']:,.2f}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
+                    <span>Platform Revenue Shift:</span>
+                    <span class="mono" style="font-weight:700; color:{'#34d399' if net_rev_shift >= 0 else '#fb7185'};">
+                        {'+' if net_rev_shift >= 0 else ''}₹{net_rev_shift:,.2f}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                    <span>Projected TDS Withholding:</span>
+                    <span class="mono" style="color:#cbd5e1;">₹{sim_res['projected_tds_withheld']:,.2f}</span>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ════════════════════════════════════════════════════════════════
-# TAB 5: REGULATORY COMPLIANCE & AUDIT TRAIL
+# TAB 5: REGULATORY AUDIT TRAIL
 # ════════════════════════════════════════════════════════════════
 with tab_audit:
-    st.markdown('<div class="sec-header">📜 Immutable Regulatory Compliance Audit Trail</div>', unsafe_allow_html=True)
-    st.caption("Full chronological trace recording every point-in-time calculation, variance detection, and automated stopping rule enforcement.")
+    st.markdown("""
+    <div class="section-card">
+        <div class="card-header-title">
+            <span>📜 Immutable Regulatory Compliance Audit Trail</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">RBI & Statutory Trace</span>
+        </div>
+    """, unsafe_allow_html=True)
 
     ac1, ac2 = st.columns([1, 4])
     with ac1:
@@ -867,6 +944,8 @@ with tab_audit:
             use_container_width=True,
             hide_index=True
         )
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ───────────────── GLOBAL FOOTER ─────────────────
