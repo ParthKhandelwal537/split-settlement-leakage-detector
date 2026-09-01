@@ -36,4 +36,35 @@
 - Ineligible split orders (`ORD-010`, `ORD-020`, `ORD-030`, `ORD-040`, `ORD-050`, `ORD-060`) correctly classified as `structural/compliance`.
 - Status: **VERIFIED & MATCHES SPEC**.
 
+## Stage 4: Stopping Rules & Escalation
+- Implemented `src/escalation.py` with strict compliance rules:
+  - Any nodal ledger break or structural/compliance exception unconditionally sets status to `escalated` and writes a halt record to `audit_log`.
+  - Confidence < 0.70 flags as `needs-review`.
+  - Point-in-time deterministic exceptions auto-cleared.
+- Tested in `tests/test_escalation.py` (3/3 passing).
+
+## Stage 5: Audit Trail
+- Fully instrumented stages with structured `audit_log` writes (Stage name, timestamp, action type, and human-readable detail).
+- Built `src/audit_report.py` for chronological trail reporting.
+
+## Stage 6: Reporting Layer
+- Implemented `src/report.py` outputting match rate (81.67%), ₹-ranked exception list, 3-bucket breakdowns, self-skepticism index (8.33% tax-timing vs real leakage), and 4/4 Seed Manifest passes.
+
+## Stage 7: Streamlit Dashboard
+- Implemented `dashboard/app.py` featuring:
+  - Top integrity metric tiles (Match rate, ₹ leakage, Escalated count, Needs-review, Auto-cleared).
+  - Seeded Edge Cases verification panel (color-coded pass badges for all 4 cases).
+  - Multi-dimensional filterable exception table (by vendor, exception type, escalation status).
+  - Real-time audit trail viewer.
+  - Interactive "Re-run Pipeline Live" button for live end-to-end demo execution.
+
+## Stage 8: System Documentation & Retrospective
+- Completed `ARCHITECTURE.md` with full data flow diagrams, SQLite relational rationale, 3-bucket taxonomy explanation, and compliant escalation design.
+- Full test suite: 7/7 tests passing (`pytest tests/ -v`).
+
+### What Broke & How It Was Resolved (Raw Pitch Material)
+1. **Windows Shell Codepage UTF-8 Symbol Crash**: Direct console logging of rupee symbols (`₹`) encountered character mapping errors under Windows standard `cp1252` encoding. Resolved cleanly using `sys.stdout.reconfigure(encoding="utf-8")` and standardized currency formats.
+2. **Point-in-Time Date Straddling**: In the retroactive commission slab test, orders placed before the 1st of the month needed exact inclusive/exclusive timestamp boundary handling (`effective_from <= order_date <= effective_to`). Handled via SQL `COALESCE/IS NULL` logic for open-ended active rules.
+
+
 
