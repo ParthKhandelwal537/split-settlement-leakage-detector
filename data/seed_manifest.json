@@ -1,0 +1,22 @@
+[
+  {
+    "order_id": "ORD-001",
+    "case_name": "Retroactive commission-slab change",
+    "description": "Order placed on 2026-07-25 (effective slab 10%), settled on 2026-08-02 where aggregator incorrectly applied current August slab of 7% resulting in \u20b9300 commission leakage."
+  },
+  {
+    "order_id": "ORD-015",
+    "case_name": "Partial refund clawback on multi-vendor order",
+    "description": "Customer returned partial item worth \u20b92,000 on 2026-07-20, but aggregator settlement clawed back full \u20b93,500 from vendor's payout (\u20b91,500 over-clawback leakage)."
+  },
+  {
+    "order_id": "ORD-028",
+    "case_name": "TCS-filing-timing exception",
+    "description": "Settled on 2026-08-05 before GSTR-8 filing on 2026-08-20; apparent \u20b9100 TCS gap is timing difference, not actual leakage."
+  },
+  {
+    "order_id": "NODAL-2026-08-14",
+    "case_name": "Nodal-balance integrity break",
+    "description": "On 2026-08-14, closing balance has an unexplained deficit of \u20b950,000 (closing_balance != opening_balance + collected - settled)."
+  }
+]
