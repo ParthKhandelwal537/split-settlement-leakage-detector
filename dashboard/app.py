@@ -21,6 +21,7 @@ from src.rule_engine import get_applicable_rate
 from src.simulator import simulate_policy_shift
 from src.remediation import generate_debit_note, schedule_gstr8_sync, trigger_escrow_freeze, update_dispute_status
 from src.reconciliation_auditor import run_two_pass_reconciliation
+from src.explainer import attach_narratives_to_records, generate_plain_language_narrative
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "reconciliation.db")
 MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "seed_manifest.json")
@@ -33,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ───────────────── HIGH-END FINTECH TRUST DESIGN SYSTEM CSS ─────────────────
+# ───────────────── STRIPE / LINEAR INSPIRED FINTECH DESIGN SYSTEM CSS ─────────────────
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -121,7 +122,7 @@ st.markdown("""
         100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* ── HEADLINE METRICS STRIP ── */
+    /* ── LEVEL 1: HEADLINE METRICS ROW ── */
     .headline-row {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -208,6 +209,23 @@ st.markdown("""
         align-items: center;
     }
 
+    /* ── LEVEL 3: HUMAN-READABLE EXPLANATION CARD ── */
+    .explanation-narrative-box {
+        background: #081020;
+        border-radius: 10px;
+        border: 1px solid rgba(14, 165, 233, 0.25);
+        padding: 14px 18px;
+        margin-top: 8px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+        color: #e2e8f0;
+        line-height: 1.6;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    .explanation-narrative-box strong {
+        color: #38bdf8;
+    }
+
     /* ── SEEDED CASES SHOWCASE CARDS ── */
     .seed-card {
         background: #091224;
@@ -248,12 +266,10 @@ st.markdown("""
     .seed-proof {
         background: rgba(15, 23, 42, 0.8);
         border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 0.74rem;
+        padding: 10px 14px;
+        font-size: 0.78rem;
         border-left: 3px solid #10b981;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        line-height: 1.5;
     }
 
     /* ── STATUS BADGE CHIPS WITH MICRO-ANIMATIONS ── */
@@ -432,6 +448,9 @@ audit_df = get_audit_trail(conn)
 matcher_df = run_matcher(conn)
 two_pass_result = run_two_pass_reconciliation(conn)
 
+# Enrich all audited records with Human-Readable Narratives (Cached)
+audited_records_enriched = attach_narratives_to_records(two_pass_result["audited_records"], conn)
+
 
 # ───────────────── HERO BANNER ─────────────────
 st.markdown("""
@@ -452,7 +471,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ───────────────── 1. HEADLINE METRICS ROW (TRUST-FOCUSED) ─────────────────
+# ───────────────── LEVEL 1: HEADLINE METRICS ROW (TRUST-FOCUSED) ─────────────────
 esc_count = report['status_counts'].get('escalated', 0)
 rev_count = report['status_counts'].get('needs-review', 0)
 auto_count = report['status_counts'].get('auto-cleared', 0)
@@ -463,7 +482,6 @@ total_inr_at_risk = report['total_settlement_leakage_inr'] + report['total_struc
 total_exceptions_count = report['total_exceptions']
 
 # Verified Trust Percentages
-# Auto-resolved (clean orders + auto-cleared tax-timing) vs Flagged for human review
 clean_plus_timing = report['clean_orders'] + auto_count
 auto_resolved_pct = round((clean_plus_timing / (total_orders + len(two_pass_result.get('nodal_breaks', [])))) * 100.0, 1)
 flagged_review_pct = round(100.0 - auto_resolved_pct, 1)
@@ -708,7 +726,7 @@ with tab_overview:
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 2: ALL RECORDS (TWO-PASS VERIFICATION WITH EXPANDABLE AUDIT)
+# TAB 2: ALL RECORDS (TWO-PASS VERIFICATION WITH 3-LEVEL PROSE AUDIT)
 # ════════════════════════════════════════════════════════════════
 with tab_all_records:
     st.markdown("""
@@ -718,12 +736,11 @@ with tab_all_records:
             <span class="pass-pill" style="color:#38bdf8;">✓ Pass 1 Mapped + Pass 2 Audited</span>
         </div>
         <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px;">
-            Every single order processed through the two-pass engine. Expand any row to inspect its exact classification reasoning, confidence score, and verification pass breakdown.
+            Every single order processed through the two-pass engine. Expand any row to read its complete financial audit narrative explaining what was expected, what occurred, and why it is classified that way.
         </p>
     """, unsafe_allow_html=True)
 
-    # Color-coded styler for all records
-    audited_df = pd.DataFrame(two_pass_result["audited_records"])
+    audited_df = pd.DataFrame(audited_records_enriched)
 
     # Search & status filter for all records
     c_ar1, c_ar2, c_ar3 = st.columns([2, 2, 2])
@@ -748,22 +765,42 @@ with tab_all_records:
 
     st.markdown(f"**Showing {len(filtered_ar)} of {len(audited_df)} records:**")
 
-    # Interactive Expandable Rows for Total Transparency
+    # 3-LEVEL HIERARCHY:
+    # Level 2: Header displays status badge, amounts, and scannable Level 2 one-line summary
+    # Level 3: Expanded card reveals the calm, human-readable full narrative paragraph
     for _, row in filtered_ar.iterrows():
         is_clean = row["status"] == "MATCHED"
         badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
         delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
         
-        with st.expander(f"{'🟢' if is_clean else '🔴'} {row['record_id']} &nbsp;|&nbsp; Exp: ₹{row['expected_amount']:,.2f} &nbsp;|&nbsp; Act: ₹{row['actual_amount']:,.2f} &nbsp;|&nbsp; Δ: {delta_str} &nbsp;|&nbsp; Status: {row['status']}"):
+        # Level 2 Scannable Row
+        expander_title = (
+            f"{'🟢' if is_clean else '🔴'} {row['record_id']} &nbsp;|&nbsp; "
+            f"Exp: ₹{row['expected_amount']:,.2f} &nbsp;|&nbsp; "
+            f"Act: ₹{row['actual_amount']:,.2f} &nbsp;|&nbsp; "
+            f"Δ: {delta_str} &nbsp;·&nbsp; {row['headline_summary']}"
+        )
+        
+        with st.expander(expander_title):
+            # Level 3 Prose Reveal
+            st.markdown(f"""
+            <div class="explanation-narrative-box">
+                <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+                    Financial Auditor Narrative (Pass 2 Verified)
+                </div>
+                {row['full_narrative']}
+            </div>
+            """, unsafe_allow_html=True)
+            
             ec1, ec2, ec3 = st.columns([1, 1, 2])
             with ec1:
-                st.markdown(f"**Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Category:** `{row['exception_category']}`")
+                st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
+                st.markdown(f"**Classification Category:** `{row['exception_category']}`")
             with ec2:
                 st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
-                st.markdown(f"**Verified By:** `Pass 2 Independent Auditor`")
+                st.markdown(f"**Audit Gate:** `Pass 2 Independent Verifier`")
             with ec3:
-                st.markdown(f"**Reasoning & Audit Trail:**")
+                st.markdown(f"**Underlying Rule Trace:**")
                 st.caption(row["reason"])
 
     st.markdown("</div>", unsafe_allow_html=True)
@@ -803,6 +840,25 @@ with tab_exceptions:
     exc_merged["vendor_id"] = exc_merged["vendor_id"].fillna("NODAL-LEDGER")
     exc_merged["category"] = exc_merged["category"].fillna("Nodal Escrow")
 
+    # Attach Human-Readable Narrative to each exception for clean display
+    narratives_map = {r["record_id"]: r["headline_summary"] for r in audited_records_enriched}
+    # Also add nodal break narrative
+    for nb in two_pass_result.get("nodal_breaks", []):
+        nb_narrative = generate_plain_language_narrative(
+            record_id=nb["record_id"],
+            status=nb["status"],
+            expected_amount=nb["expected_amount"],
+            actual_amount=nb["actual_amount"],
+            variance_delta=nb["variance_delta"],
+            exception_category=nb["exception_category"],
+            confidence_score=nb["confidence_score"],
+            reason=nb["reason"],
+            conn=conn
+        )
+        narratives_map[nb["record_id"]] = nb_narrative["headline_summary"]
+
+    exc_merged["plain_explanation"] = exc_merged["order_id"].map(lambda oid: narratives_map.get(oid, "Discrepancy detected during settlement reconciliation."))
+
     max_impact = float(exc_merged["rupee_impact"].max()) if not exc_merged.empty else 50000.0
     impact_range = st.slider("₹ Impact Range", min_value=0.0, max_value=max_impact, value=(0.0, max_impact), step=500.0, format="₹%d")
 
@@ -830,7 +886,7 @@ with tab_exceptions:
 
     styled_exc = exc_merged[[
         "exception_id", "order_id", "vendor_id", "category",
-        "exception_type", "rupee_impact", "confidence_score", "status", "reason"
+        "exception_type", "rupee_impact", "confidence_score", "status", "plain_explanation"
     ]].style.map(highlight_status, subset=["status"])
 
     st.dataframe(
@@ -844,7 +900,7 @@ with tab_exceptions:
             "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
             "confidence_score": st.column_config.ProgressColumn("Confidence", min_value=0.0, max_value=1.0, format="%.3f"),
             "status": st.column_config.TextColumn("Status", width="small"),
-            "reason": st.column_config.TextColumn("Root Cause & Diagnostic", width="large")
+            "plain_explanation": st.column_config.TextColumn("Plain Language Explanation", width="large")
         },
         use_container_width=True,
         hide_index=True
@@ -875,7 +931,7 @@ with tab_seeded:
             "name": "Retroactive Commission Slab Drift",
             "test_goal": "Tests whether orders placed under a July contract rate (10%) mistakenly settle under August's lower rate (7%) when settled in August.",
             "planted": "Order placed 2026-07-25 (gross ₹10,000, 10% = ₹1,000 comm). Settled on 2026-08-02 where aggregator deducted ₹700.",
-            "caught_verdict": "CAUGHT: Point-in-time rule engine reconstructed July contract rate. Detected ₹300 under-deduction leakage.",
+            "caught_verdict": generate_plain_language_narrative("ORD-001", "VARIANCE", 8700.0, 9000.0, 300.0, "settlement-math", 0.72, "Commission slab mismatch", conn)["full_narrative"],
             "status": "needs-review",
             "impact": "₹300.00",
             "badge": "settlement-math"
@@ -885,7 +941,7 @@ with tab_seeded:
             "name": "Asymmetric Refund Over-Clawback",
             "test_goal": "Tests whether customer partial return claws back only that return amount, rather than over-deducting from vendor payout.",
             "planted": "Partial return of ₹2,000 on 2026-07-20. Aggregator deducted full ₹3,500 from payout (₹1,500 over-clawback).",
-            "caught_verdict": "CAUGHT: Pass 2 Auditor identified payout disparity between logged refund and settlement deductions.",
+            "caught_verdict": generate_plain_language_narrative("ORD-015", "VARIANCE", 4780.0, 3280.0, -1500.0, "settlement-math", 0.85, "Refund clawback disparity", conn)["full_narrative"],
             "status": "needs-review",
             "impact": "₹1,500.00",
             "badge": "settlement-math"
@@ -895,7 +951,7 @@ with tab_seeded:
             "name": "TCS Filing Timing Buffer (Self-Skepticism)",
             "test_goal": "Tests whether apparent missing tax credits are recognized as harmless timing differences pending GSTR-8 portal filing.",
             "planted": "Settled on 2026-08-05 before GSTR-8 tax return filed on 2026-08-20. Apparent ₹100 TCS gap is calendar lag, not theft.",
-            "caught_verdict": "CAUGHT: Cross-referenced gst_filings calendar. Classified as tax-timing; queued for automated GSTR-8 sync.",
+            "caught_verdict": generate_plain_language_narrative("ORD-028", "VARIANCE", 8600.0, 8700.0, 100.0, "tax-timing", 0.85, "TCS credit missing due to pending GSTR-8", conn)["full_narrative"],
             "status": "auto-cleared",
             "impact": "₹100.00",
             "badge": "tax-timing"
@@ -905,7 +961,7 @@ with tab_seeded:
             "name": "RBI Nodal Escrow Solvency Deficit",
             "test_goal": "Tests whether an unexplained escrow balance break immediately trips automated stopping rules and halts the batch.",
             "planted": "On 2026-08-14, closing balance of ₹749,061.43 diverged by an unexplained ₹50,000 deficit from Opening + Collected - Settled.",
-            "caught_verdict": "CAUGHT: Daily nodal solvency invariant violated. Halting circuit breaker tripped; escrow freeze alert dispatched.",
+            "caught_verdict": generate_plain_language_narrative("NODAL-2026-08-14", "VARIANCE", 799061.43, 749061.43, -50000.0, "structural/compliance", 1.0, "Nodal account balance break", conn)["full_narrative"],
             "status": "escalated",
             "impact": "₹50,000.00",
             "badge": "structural/compliance"
@@ -929,8 +985,8 @@ with tab_seeded:
                 <strong>Planted Corruption:</strong> {seed['planted']}
             </div>
             <div class="seed-proof">
-                <span>🛡️ <strong>Engine Verdict:</strong> {seed['caught_verdict']}</span>
-                <span style="color:#38bdf8; font-weight:700;">PROVED IN PASS 2</span>
+                <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Engine Plain-Language Explanation:</div>
+                <div>{seed['caught_verdict']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -966,6 +1022,19 @@ with tab_diagnostic:
     has_exception = not exc_match.empty
     exc_info = exc_match.iloc[0] if has_exception else None
 
+    # Generate or fetch plain-language narrative for target order
+    order_narrative = generate_plain_language_narrative(
+        record_id=target_order,
+        status="VARIANCE" if has_exception else "MATCHED",
+        expected_amount=float(order_detail["expected_payout"]),
+        actual_amount=float(order_detail["actual_payout"]),
+        variance_delta=float(order_detail["payout_delta"]),
+        exception_category=exc_info["exception_type"] if has_exception else "clean",
+        confidence_score=float(exc_info["confidence_score"]) if has_exception else 1.0,
+        reason=exc_info["reason"] if has_exception else "Deterministic match",
+        conn=conn
+    )
+
     with col_target_info:
         if has_exception:
             exc_t = exc_info["exception_type"]
@@ -991,6 +1060,16 @@ with tab_diagnostic:
             """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+
+    # Level 3 Prose Box in Diagnostic View
+    st.markdown(f"""
+    <div class="explanation-narrative-box" style="margin-bottom: 16px;">
+        <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+            Auditor Case Narrative — {target_order}
+        </div>
+        {order_narrative['full_narrative']}
+    </div>
+    """, unsafe_allow_html=True)
 
     # 2 Column Forensic Grid
     diag_c1, diag_c2 = st.columns([13, 10])
@@ -1063,11 +1142,9 @@ with tab_diagnostic:
         """, unsafe_allow_html=True)
 
     with diag_c2:
-        st.markdown("##### 🤖 Root-Cause Analysis & Action Hub")
+        st.markdown("##### 🤖 Remediation & Operations Action Hub")
         
         if has_exception:
-            st.info(f"**Root Cause Diagnosis:** {exc_info['reason']}")
-            
             st.markdown("###### ⚡ Operations Remediation Actions:")
             
             if exc_info["exception_type"] == "settlement-math":
