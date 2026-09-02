@@ -57,4 +57,20 @@ def test_status_breakdown_consistency(test_db):
     classify_exceptions(test_db)
     counts = apply_stopping_rules_and_escalate(test_db)
     assert counts["escalated"] > 0
+    assert counts["needs-review"] > 0
     assert counts["auto-cleared"] > 0
+
+def test_settlement_math_leakage_requires_review(test_db):
+    """
+    Verify real financial leakage (ORD-001 commission slab error and ORD-015 refund clawback)
+    is routed to 'needs-review' rather than being silently auto-cleared.
+    """
+    classify_exceptions(test_db)
+    apply_stopping_rules_and_escalate(test_db)
+    
+    cursor = test_db.cursor()
+    cursor.execute("SELECT status FROM exceptions WHERE order_id = 'ORD-001'")
+    assert cursor.fetchone()[0] == "needs-review"
+
+    cursor.execute("SELECT status FROM exceptions WHERE order_id = 'ORD-015'")
+    assert cursor.fetchone()[0] == "needs-review"

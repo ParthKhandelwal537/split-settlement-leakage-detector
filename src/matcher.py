@@ -22,6 +22,15 @@ def run_matcher(conn: sqlite3.Connection) -> pd.DataFrame:
         refund_agg = pd.DataFrame(columns=["order_id", "refund_amount"])
 
     # Merge orders with settlements and refunds
+    if orders_df.empty:
+        return pd.DataFrame(columns=[
+            "order_id", "vendor_id", "order_date", "settlement_date", "gross_amount",
+            "is_split_eligible", "comm_rate", "expected_comm", "actual_comm", "comm_delta",
+            "expected_tcs", "actual_tcs", "tcs_delta", "expected_tds", "actual_tds",
+            "tds_delta", "expected_logistics", "actual_logistics", "refund_amount",
+            "expected_payout", "actual_payout", "payout_delta", "has_delta"
+        ])
+
     merged = pd.merge(orders_df, settlements_df, on="order_id", how="left")
     merged = pd.merge(merged, refund_agg, on="order_id", how="left")
     merged["refund_amount"] = merged["refund_amount"].fillna(0.0)

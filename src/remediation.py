@@ -13,11 +13,13 @@ def generate_debit_note(
     and logs the action in the immutable audit trail.
     """
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM exceptions WHERE order_id = ?", (order_id,))
+    cursor.execute("SELECT rupee_impact, reason FROM exceptions WHERE order_id = ?", (order_id,))
     row = cursor.fetchone()
+    if not row:
+        raise ValueError(f"No exception record found for order '{order_id}' to generate debit note.")
     
-    impact = float(row[6]) if row else 0.0
-    reason = str(row[3]) if row else "Discrepancy in settlement payout calculation."
+    impact = float(row[0])
+    reason = str(row[1])
     
     note_id = f"DN-{order_id}-{datetime.now().strftime('%Y%m%d%H%M')}"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

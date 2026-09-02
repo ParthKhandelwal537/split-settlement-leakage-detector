@@ -7,17 +7,37 @@ from typing import Dict
 # Ensure project root is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+def get_halted_nodal_dates(conn: sqlite3.Connection):
+    """
+    Returns list of dates (YYYY-MM-DD) with nodal account ledger balance breaks.
+    """
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT date FROM nodal_account_ledger
+        WHERE abs(closing_balance - (opening_balance + collected - settled)) > 0.01
+    """)
+    return [r[0] for r in cursor.fetchall()]
+
 def apply_stopping_rules_and_escalate(conn: sqlite3.Connection) -> Dict[str, int]:
     """
     Applies strict, explicit stopping and escalation rules to all exceptions:
-    1. If exception_type == 'structural/compliance' -> status = 'escalated' (always, overriding confidence)
-    2. If nodal balance break -> status = 'escalated' + writes audit log halting batch
+    1. If exception_type == 'structural/compliance' or nodal break -> status = 'escalated' (always)
+    2. If order settled on a date with a nodal break -> status = 'escalated' (HALT further automated action)
     3. If confidence_score < 0.7 -> status = 'needs-review' (never auto-resolved)
-    4. Otherwise (high-confidence settlement-math or tax-timing) -> status = 'auto-cleared'
+    4. If exception_type == 'settlement-math' (real leakage!) -> status = 'needs-review' (requires human ops / debit note recovery)
+    5. If exception_type == 'tax-timing' (non-leakage GSTR-8 timing lag, conf >= 0.7) -> status = 'auto-cleared'
     
     Updates exceptions table in place and returns status breakdown counts.
     """
     cursor = conn.cursor()
+    halted_dates = set(get_halted_nodal_dates(conn))
+    
+    # Query settlement dates for orders to enforce batch halting
+    order_settlement_dates = {}
+    cursor.execute("SELECT order_id, settlement_date FROM settlements")
+    for oid, s_date in cursor.fetchall():
+        order_settlement_dates[oid] = s_date
+        
     cursor.execute("SELECT exception_id, order_id, exception_type, confidence_score, reason FROM exceptions")
     rows = cursor.fetchall()
     
@@ -26,12 +46,12 @@ def apply_stopping_rules_and_escalate(conn: sqlite3.Connection) -> Dict[str, int
     
     for exc_id, order_id, exc_type, conf, reason in rows:
         is_nodal_break = (order_id and str(order_id).startswith("NODAL-")) or "nodal" in exc_type.lower()
+        order_settled_on_halted_date = order_settlement_dates.get(order_id) in halted_dates
         
-        # Rule 1: Structural/compliance or Nodal Break is ALWAYS escalated regardless of confidence
-        if exc_type == "structural/compliance" or is_nodal_break:
+        # Rule 1: Structural/compliance, Nodal Break, or batch settled on a broken nodal date is ALWAYS escalated
+        if exc_type == "structural/compliance" or is_nodal_break or order_settled_on_halted_date:
             new_status = "escalated"
             if is_nodal_break:
-                # Log immediate halt in audit_log
                 break_date = order_id.replace("NODAL-", "") if order_id and "NODAL-" in order_id else "UNKNOWN"
                 cursor.execute(
                     "INSERT INTO audit_log (timestamp, stage, action, detail) VALUES (?, ?, ?, ?)",
@@ -39,13 +59,16 @@ def apply_stopping_rules_and_escalate(conn: sqlite3.Connection) -> Dict[str, int
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "Stage 4",
                         "ESCALATION_HALT",
-                        f"CRITICAL STOPPING RULE TRIGGERED: Nodal account balance integrity break detected on {break_date}. Automated processing HALTED for this date batch. Case escalated to Human Finance Ops."
+                        f"CRITICAL STOPPING RULE TRIGGERED: Nodal account balance integrity break detected on {break_date}. Automated processing HALTED for this date batch. All associated orders locked from auto-clearing."
                     )
                 )
-        # Rule 2: Confidence score < 0.7 -> needs-review
+        # Rule 2: Low confidence (< 0.70) must never auto-resolve
         elif conf < 0.7:
             new_status = "needs-review"
-        # Rule 3: High confidence math/timing exceptions
+        # Rule 3: Real financial loss (settlement-math) cannot be silently auto-cleared; requires human ops / debit note
+        elif exc_type == "settlement-math":
+            new_status = "needs-review"
+        # Rule 4: Harmless tax-timing differences (confidence >= 0.70) safely queued for GSTR-8 portal auto-sync
         else:
             new_status = "auto-cleared"
             
