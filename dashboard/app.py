@@ -34,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ───────────────── ULTRA-POLISHED STRIPE / LINEAR DESIGN SYSTEM CSS ─────────────────
+# ───────────────── STRIPE / LINEAR DESIGN SYSTEM CSS ─────────────────
 st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -62,7 +62,6 @@ st.markdown("""<style>
         max-width: 96% !important;
     }
 
-    /* ── HERO BANNER ── */
     .hero-banner {
         background: linear-gradient(135deg, #071329 0%, #0c234a 55%, #083366 100%);
         border-radius: 14px;
@@ -115,7 +114,6 @@ st.markdown("""<style>
         box-shadow: 0 0 10px #10b981;
     }
 
-    /* ── STREAMLIT COLUMNS METRIC CARDS (CLEAN, ZERO HTML LEAK) ── */
     .metric-card-box {
         background: #0b1324;
         border: 1px solid rgba(148, 163, 184, 0.16);
@@ -168,7 +166,6 @@ st.markdown("""<style>
     .badge-amber-bg { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
     .badge-red-bg { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
 
-    /* ── SECTION CARDS ── */
     .section-card {
         background: #0b1324;
         border: 1px solid rgba(148, 163, 184, 0.14);
@@ -186,7 +183,6 @@ st.markdown("""<style>
         align-items: center;
     }
 
-    /* ── LEVEL 3: CALM PROSE EXPLANATION BOX ── */
     .explanation-narrative-box {
         background: #081020;
         border-radius: 10px;
@@ -200,7 +196,6 @@ st.markdown("""<style>
         box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
-    /* ── SEEDED CASES SHOWCASE CARDS ── */
     .seed-card {
         background: #091224;
         border-radius: 12px;
@@ -224,11 +219,6 @@ st.markdown("""<style>
         font-weight: 700;
         color: #38bdf8;
     }
-    .seed-name {
-        font-size: 0.90rem;
-        font-weight: 700;
-        color: #f8fafc;
-    }
     .seed-desc {
         font-size: 0.78rem;
         color: #94a3b8;
@@ -245,7 +235,6 @@ st.markdown("""<style>
         color: #cbd5e1;
     }
 
-    /* ── STATUS BADGE CHIPS ── */
     .badge-chip {
         font-size: 0.70rem;
         font-weight: 700;
@@ -260,7 +249,6 @@ st.markdown("""<style>
     .chip-escalated { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
     .chip-timing { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.35); }
 
-    /* ── WATERFALL TABLE ── */
     .wf-table-container {
         border: 1px solid rgba(148, 163, 184, 0.14);
         border-radius: 10px;
@@ -300,7 +288,6 @@ st.markdown("""<style>
     .delta-good { color: #34d399; font-weight: 600; }
     .delta-timing { color: #38bdf8; font-weight: 600; }
 
-    /* ── SCOPE TRANSPARENCY CARD ── */
     .scope-box {
         background: #081020;
         border: 1px dashed rgba(148, 163, 184, 0.28);
@@ -324,7 +311,6 @@ st.markdown("""<style>
         margin-bottom: 6px;
     }
 
-    /* ── FOOTER ── */
     .app-footer {
         text-align: center;
         padding: 22px 0 10px 0;
@@ -334,11 +320,28 @@ st.markdown("""<style>
         margin-top: 28px;
     }
     .app-footer a { color: #0ea5e9; text-decoration: none; }
+
+    .demo-hint {
+        background: rgba(14, 165, 233, 0.08);
+        border: 1px solid rgba(14, 165, 233, 0.2);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.74rem;
+        color: #94a3b8;
+        margin-bottom: 12px;
+        line-height: 1.5;
+    }
+    .demo-hint strong { color: #38bdf8; }
 </style>""", unsafe_allow_html=True)
 
 
-# ───────────────── PIPELINE CONTROLLERS ─────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# PART 2 FIX: SESSION STATE CACHING — PIPELINE RUNS ONLY ON EXPLICIT
+# TRIGGER, NEVER ON WIDGET RERUNS
+# ═══════════════════════════════════════════════════════════════════════
+
 def execute_pipeline():
+    """Run classification + escalation. Writes audit log entries."""
     conn = sqlite3.connect(DB_PATH)
     try:
         classify_exceptions(conn)
@@ -347,13 +350,42 @@ def execute_pipeline():
         conn.close()
 
 def regenerate_all_data():
+    """Re-seed synthetic data and run pipeline. Writes audit log entries."""
     run_data_generator()
     execute_pipeline()
 
-# Ensure DB is created
+def _load_all_data():
+    """
+    Load all data from DB and run the side-effect-producing pipeline
+    stages (matcher, two-pass auditor) ONCE, returning cached results.
+    This is the ONLY place that calls run_matcher / run_two_pass_reconciliation,
+    which each write one audit_log row per invocation.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    report = generate_reconciliation_report(conn)
+    audit_df = get_audit_trail(conn)
+    matcher_df = run_matcher(conn)
+    two_pass_result = run_two_pass_reconciliation(conn)
+    audited_records_enriched = attach_narratives_to_records(
+        two_pass_result["audited_records"], conn
+    )
+    conn.close()
+    return {
+        "report": report,
+        "audit_df": audit_df,
+        "matcher_df": matcher_df,
+        "two_pass_result": two_pass_result,
+        "audited_records_enriched": audited_records_enriched,
+    }
+
+# Ensure DB exists on very first load
 if not os.path.exists(DB_PATH):
     with st.spinner("Initializing SQLite ledger and generating synthetic marketplace batch..."):
         regenerate_all_data()
+
+# Initialize session state cache on first run only
+if "pipeline_data" not in st.session_state:
+    st.session_state["pipeline_data"] = _load_all_data()
 
 
 # ───────────────── SIDEBAR CONTROLLER ─────────────────
@@ -367,12 +399,14 @@ with st.sidebar:
         with st.spinner("Reconstructing point-in-time contracts & evaluating variance..."):
             time.sleep(0.15)
             execute_pipeline()
+            st.session_state["pipeline_data"] = _load_all_data()
             st.toast("Reconciliation cycle completed successfully!", icon="⚡")
             st.rerun()
 
     if st.button("🎲 Re-Seed Synthetic Batch (60 Orders)", use_container_width=True):
         with st.spinner("Generating fresh multi-vendor transactions & injecting edge cases..."):
             regenerate_all_data()
+            st.session_state["pipeline_data"] = _load_all_data()
             st.toast("Fresh synthetic marketplace batch initialized!", icon="🌱")
             st.rerun()
 
@@ -390,15 +424,18 @@ with st.sidebar:
     st.caption("Razorpay AI Buildathon 2026 Submission")
 
 
-# ───────────────── DATA FETCHING & TWO-PASS EXECUTION ─────────────────
-conn = sqlite3.connect(DB_PATH)
-report = generate_reconciliation_report(conn)
-audit_df = get_audit_trail(conn)
-matcher_df = run_matcher(conn)
-two_pass_result = run_two_pass_reconciliation(conn)
+# ═══════════════════════════════════════════════════════════════════════
+# UNPACK CACHED DATA — NO PIPELINE RE-EXECUTION ON WIDGET RERUNS
+# ═══════════════════════════════════════════════════════════════════════
+_data = st.session_state["pipeline_data"]
+report = _data["report"]
+audit_df = _data["audit_df"]
+matcher_df = _data["matcher_df"]
+two_pass_result = _data["two_pass_result"]
+audited_records_enriched = _data["audited_records_enriched"]
 
-# Enrich all audited records with Human-Readable Narratives (Cached)
-audited_records_enriched = attach_narratives_to_records(two_pass_result["audited_records"], conn)
+# Open a READ-ONLY connection for any additional queries (vendor lookup etc.)
+conn = sqlite3.connect(DB_PATH)
 
 
 # ───────────────── HERO BANNER ─────────────────
@@ -409,7 +446,7 @@ st.markdown("""<div class="hero-banner">
             <span style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; background: rgba(14,165,233,0.15); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(14,165,233,0.3);">Two-Pass Verification</span>
         </div>
         <div class="hero-subtitle">
-            Autonomous settlement reconciliation & escrow integrity controller. Reconstructs point-in-time contracts in Pass 1, executes independent zero-tolerance mathematical audits in Pass 2, intercepts refund over-clawbacks, and halts payout batches on RBI Nodal deficits.
+            Autonomous settlement reconciliation &amp; escrow integrity controller. Reconstructs point-in-time contracts in Pass 1, executes independent zero-tolerance mathematical audits in Pass 2, intercepts refund over-clawbacks, and halts payout batches on RBI Nodal deficits.
         </div>
     </div>
     <div>
@@ -418,7 +455,7 @@ st.markdown("""<div class="hero-banner">
 </div>""", unsafe_allow_html=True)
 
 
-# ───────────────── LEVEL 1: HEADLINE METRICS ROW (STREAMLIT NATIVE COLUMNS) ─────────────────
+# ───────────────── LEVEL 1: HEADLINE METRICS ─────────────────
 esc_count = report['status_counts'].get('escalated', 0)
 rev_count = report['status_counts'].get('needs-review', 0)
 auto_count = report['status_counts'].get('auto-cleared', 0)
@@ -428,10 +465,10 @@ total_inr_at_risk = report['total_settlement_leakage_inr'] + report['total_struc
 total_exceptions_count = report['total_exceptions']
 
 clean_plus_timing = report['clean_orders'] + auto_count
-auto_resolved_pct = round((clean_plus_timing / (total_orders + len(two_pass_result.get('nodal_breaks', [])))) * 100.0, 1)
+nodal_break_count = len(two_pass_result.get('nodal_breaks', []))
+auto_resolved_pct = round((clean_plus_timing / (total_orders + nodal_break_count)) * 100.0, 1)
 flagged_review_pct = round(100.0 - auto_resolved_pct, 1)
 
-# Render Level 1 via 4 Streamlit Native Columns for 100% Reliable, Leak-Free Layout
 mc1, mc2, mc3, mc4 = st.columns(4)
 
 with mc1:
@@ -449,7 +486,7 @@ with mc2:
     st.markdown(f"""<div class="metric-card-box">
         <div class="metric-stripe-red"></div>
         <div>
-            <div class="metric-label-txt">Exceptions & ₹ at Risk</div>
+            <div class="metric-label-txt">Exceptions &amp; ₹ at Risk</div>
             <div class="metric-value-txt" style="color: #fb7185;">₹{total_inr_at_risk:,.0f}</div>
             <div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#fb7185;">{total_exceptions_count} exceptions</span> (₹{report['total_settlement_leakage_inr']:,.0f} leakage)</div>
         </div>
@@ -478,18 +515,28 @@ with mc4:
         <div class="metric-badge-txt badge-green-bg">🔒 GSTR-8 Queue Active</div>
     </div>""", unsafe_allow_html=True)
 
-st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
+# ═══════════════════════════════════════════════════════════════════════
+# PART 4: DEMO-OPTIMIZED TAB ORDER
+# Tab 1: Overview — headline solvency story
+# Tab 2: Seeded Edge Cases — adversarial proof (strongest demo content)
+# Tab 3: Exceptions & Triage — ranked exception ledger
+# Tab 4-7: Everything else
+# ═══════════════════════════════════════════════════════════════════════
+st.markdown("""<div class="demo-hint">
+    <strong>💡 Recommended Demo Path:</strong>
+    ① Overview &amp; Solvency → ② Seeded Edge Cases → ③ Exceptions &amp; Triage → ④ All Records → ⑤ Order Diagnostic → ⑥ Simulator → ⑦ Audit Trail
+</div>""", unsafe_allow_html=True)
 
-# ───────────────── 7 STRUCTURED PRODUCTION TABS ─────────────────
-tab_overview, tab_all_records, tab_exceptions, tab_seeded, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
-    "📊 Overview & Solvency",
-    "📋 All Records (Two-Pass)",
-    "🔍 Exceptions & Triage",
-    "🎯 Seeded Edge Cases",
-    "🔬 Order Diagnostic & Recovery",
-    "🧮 Vendor 360° & Simulator",
-    "📜 Regulatory Audit Trail"
+tab_overview, tab_seeded, tab_exceptions, tab_all_records, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
+    "① Overview & Solvency",
+    "② Seeded Edge Cases",
+    "③ Exceptions & Triage",
+    "④ All Records (Two-Pass)",
+    "⑤ Order Diagnostic & Recovery",
+    "⑥ Vendor 360° & Simulator",
+    "⑦ Regulatory Audit Trail"
 ])
 
 
@@ -509,7 +556,7 @@ with tab_overview:
         type_data = pd.DataFrame([
             {"Classification": k, "Count": v} for k, v in report["type_counts"].items()
         ])
-        
+
         if not type_data.empty:
             donut_chart = alt.Chart(type_data).mark_arc(innerRadius=60, outerRadius=88, strokeWidth=2, stroke="#0b1324").encode(
                 theta=alt.Theta("Count:Q"),
@@ -517,22 +564,13 @@ with tab_overview:
                     domain=["settlement-math", "tax-timing", "structural/compliance"],
                     range=["#f43f5e", "#06b6d4", "#f59e0b"]
                 ), legend=alt.Legend(
-                    title=None,
-                    orient="bottom",
-                    columns=3,
-                    labelColor="#cbd5e1",
-                    labelFontSize=11,
-                    symbolSize=80,
-                    labelLimit=200,
-                    padding=10
+                    title=None, orient="bottom", columns=3,
+                    labelColor="#cbd5e1", labelFontSize=11, symbolSize=80, labelLimit=200, padding=10
                 )),
                 tooltip=["Classification:N", "Count:Q"]
-            ).properties(
-                height=230,
-                width="container"
-            ).configure_view(strokeWidth=0).configure(background="transparent")
+            ).properties(height=230, width="container").configure_view(strokeWidth=0).configure(background="transparent")
             st.altair_chart(donut_chart, use_container_width=True)
-            
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_chart_right:
@@ -542,16 +580,15 @@ with tab_overview:
                 <span style="font-size:0.75rem; color:#94a3b8;">Ranked Exposure (₹)</span>
             </div>""", unsafe_allow_html=True)
 
-        exc_df = report["exceptions_df"].copy()
-        orders_map = pd.read_sql_query("SELECT order_id, vendor_id FROM orders", conn)
-        exc_vendor = pd.merge(exc_df, orders_map, on="order_id", how="left")
+        exc_df_chart = report["exceptions_df"].copy()
+        orders_map_chart = pd.read_sql_query("SELECT order_id, vendor_id FROM orders", conn)
+        exc_vendor = pd.merge(exc_df_chart, orders_map_chart, on="order_id", how="left")
         exc_vendor["vendor_id"] = exc_vendor["vendor_id"].fillna("NODAL-LEDGER")
         vendor_impact = exc_vendor.groupby("vendor_id")["rupee_impact"].sum().reset_index()
         vendor_impact = vendor_impact.sort_values("rupee_impact", ascending=False).head(6)
 
         if not vendor_impact.empty:
             hbar_base = alt.Chart(vendor_impact)
-            
             bars = hbar_base.mark_bar(
                 cornerRadiusTopRight=6, cornerRadiusBottomRight=6,
                 color=alt.Gradient(gradient='linear', stops=[
@@ -563,25 +600,10 @@ with tab_overview:
                 x=alt.X("rupee_impact:Q", title="₹ Total Financial Exposure", axis=alt.Axis(labelColor="#94a3b8", titleColor="#94a3b8", titlePadding=12, labelPadding=8, format=",.0f")),
                 tooltip=[alt.Tooltip("vendor_id:N", title="Entity"), alt.Tooltip("rupee_impact:Q", title="₹ Exposure", format=",.2f")]
             )
-
-            text_labels = hbar_base.mark_text(
-                align="left",
-                baseline="middle",
-                dx=6,
-                fontSize=11,
-                fontWeight=600,
-                color="#cbd5e1"
-            ).encode(
-                y=alt.Y("vendor_id:N", sort="-x"),
-                x=alt.X("rupee_impact:Q"),
-                text=alt.Text("rupee_impact:Q", format=",.0f")
+            text_labels = hbar_base.mark_text(align="left", baseline="middle", dx=6, fontSize=11, fontWeight=600, color="#cbd5e1").encode(
+                y=alt.Y("vendor_id:N", sort="-x"), x=alt.X("rupee_impact:Q"), text=alt.Text("rupee_impact:Q", format=",.0f")
             )
-
-            hbar_chart = (bars + text_labels).properties(
-                height=230,
-                width="container",
-                padding={"left": 25, "right": 45, "top": 10, "bottom": 10}
-            ).configure_view(strokeWidth=0).configure(background="transparent")
+            hbar_chart = (bars + text_labels).properties(height=230, width="container", padding={"left": 25, "right": 45, "top": 10, "bottom": 10}).configure_view(strokeWidth=0).configure(background="transparent")
             st.altair_chart(hbar_chart, use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -595,65 +617,18 @@ with tab_overview:
 
     nodal_df = pd.read_sql_query("SELECT date, opening_balance, collected, settled, closing_balance FROM nodal_account_ledger ORDER BY date", conn)
     nodal_df["expected_closing"] = round(nodal_df["opening_balance"] + nodal_df["collected"] - nodal_df["settled"], 2)
-    
-    nodal_melt = pd.melt(
-        nodal_df,
-        id_vars=["date"],
-        value_vars=["closing_balance", "expected_closing"],
-        var_name="Series",
-        value_name="Balance"
-    )
-    nodal_melt["Series"] = nodal_melt["Series"].map({
-        "closing_balance": "Actual Nodal Closing",
-        "expected_closing": "Mathematical Expected"
-    })
+
+    nodal_melt = pd.melt(nodal_df, id_vars=["date"], value_vars=["closing_balance", "expected_closing"], var_name="Series", value_name="Balance")
+    nodal_melt["Series"] = nodal_melt["Series"].map({"closing_balance": "Actual Nodal Closing", "expected_closing": "Mathematical Expected"})
     nodal_melt["date"] = pd.to_datetime(nodal_melt["date"])
 
     nodal_chart = alt.Chart(nodal_melt).mark_line(strokeWidth=2.4).encode(
-        x=alt.X("date:T", title=None, axis=alt.Axis(
-            labelColor="#94a3b8",
-            format="%b %d",
-            labelFontSize=11,
-            labelPadding=8,
-            gridColor="rgba(148, 163, 184, 0.08)"
-        )),
-        y=alt.Y("Balance:Q", title="Nodal Balance (₹ INR)",
-            axis=alt.Axis(
-                labelColor="#cbd5e1",
-                titleColor="#94a3b8",
-                titleFontSize=11,
-                titlePadding=18,
-                labelPadding=12,
-                format=",.0f",
-                gridColor="rgba(148, 163, 184, 0.08)"
-            ),
-            scale=alt.Scale(zero=False, padding=12)
-        ),
-        color=alt.Color("Series:N", scale=alt.Scale(
-            domain=["Actual Nodal Closing", "Mathematical Expected"],
-            range=["#0ea5e9", "#f59e0b"]
-        ), legend=alt.Legend(
-            title=None,
-            orient="bottom",
-            labelColor="#cbd5e1",
-            labelFontSize=11,
-            symbolSize=80,
-            padding=10
-        )),
-        strokeDash=alt.StrokeDash("Series:N", scale=alt.Scale(
-            domain=["Actual Nodal Closing", "Mathematical Expected"],
-            range=[[0], [6, 4]]
-        ), legend=None),
-        tooltip=[
-            alt.Tooltip("date:T", title="Date", format="%Y-%m-%d"),
-            alt.Tooltip("Series:N", title="Metric"),
-            alt.Tooltip("Balance:Q", title="Amount (INR)", format=",.2f")
-        ]
-    ).properties(
-        height=260,
-        width="container",
-        padding={"left": 55, "right": 25, "top": 15, "bottom": 15}
-    ).configure_view(strokeWidth=0).configure(background="transparent")
+        x=alt.X("date:T", title=None, axis=alt.Axis(labelColor="#94a3b8", format="%b %d", labelFontSize=11, labelPadding=8, gridColor="rgba(148, 163, 184, 0.08)")),
+        y=alt.Y("Balance:Q", title="Nodal Balance (₹ INR)", axis=alt.Axis(labelColor="#cbd5e1", titleColor="#94a3b8", titleFontSize=11, titlePadding=18, labelPadding=12, format=",.0f", gridColor="rgba(148, 163, 184, 0.08)"), scale=alt.Scale(zero=False, padding=12)),
+        color=alt.Color("Series:N", scale=alt.Scale(domain=["Actual Nodal Closing", "Mathematical Expected"], range=["#0ea5e9", "#f59e0b"]), legend=alt.Legend(title=None, orient="bottom", labelColor="#cbd5e1", labelFontSize=11, symbolSize=80, padding=10)),
+        strokeDash=alt.StrokeDash("Series:N", scale=alt.Scale(domain=["Actual Nodal Closing", "Mathematical Expected"], range=[[0], [6, 4]]), legend=None),
+        tooltip=[alt.Tooltip("date:T", title="Date", format="%Y-%m-%d"), alt.Tooltip("Series:N", title="Metric"), alt.Tooltip("Balance:Q", title="Amount (INR)", format=",.2f")]
+    ).properties(height=260, width="container", padding={"left": 55, "right": 25, "top": 15, "bottom": 15}).configure_view(strokeWidth=0).configure(background="transparent")
 
     st.altair_chart(nodal_chart, use_container_width=True)
 
@@ -663,81 +638,84 @@ with tab_overview:
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 2: ALL RECORDS (TWO-PASS VERIFICATION WITH 3-LEVEL PROSE AUDIT)
+# TAB 2: SEEDED EDGE CASES (DEMO-CRITICAL — MOVED UP)
 # ════════════════════════════════════════════════════════════════
-with tab_all_records:
+with tab_seeded:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
-            <span>📋 Complete Batch Ledger — 100% Record Transparency</span>
-            <span style="color:#38bdf8; font-weight:700; font-size:0.78rem;">✓ Pass 1 Mapped + Pass 2 Audited</span>
+            <span>🎯 Seeded Edge Cases — Adversarial Verification Proof</span>
+            <span style="color:#34d399; font-weight:700; font-size:0.78rem;">4 of 4 Detected (100% Precision)</span>
         </div>
-        <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px;">
-            Every single order processed through the two-pass engine. Expand any row to read its complete financial audit narrative explaining what was expected, what occurred, and why it is classified that way.
+        <p style="font-size:0.82rem; color:#94a3b8; margin-top:-6px;">
+            To prove SplitGuard AI does not silently smooth over edge cases or hallucinate clean matches, we deliberately seeded <strong>4 tricky real-world failure vectors</strong> into the synthetic dataset. Here is exactly what was tested and how the engine caught it:
         </p>
     </div>""", unsafe_allow_html=True)
 
-    audited_df = pd.DataFrame(audited_records_enriched)
+    # Generate narratives using a read-only connection
+    manifest_seeds = [
+        {
+            "id": "ORD-001",
+            "name": "Retroactive Commission Slab Drift",
+            "test_goal": "Tests whether orders placed under a July contract rate (10%) mistakenly settle under August's lower rate (7%) when settled in August.",
+            "planted": "Order placed 2026-07-25 (gross ₹10,000, 10% = ₹1,000 comm). Settled on 2026-08-02 where aggregator deducted ₹700.",
+            "caught_verdict": generate_plain_language_narrative("ORD-001", "VARIANCE", 8700.0, 9000.0, 300.0, "settlement-math", 0.72, "Commission slab mismatch", conn)["full_narrative"],
+            "status": "needs-review",
+            "impact": "₹300.00",
+        },
+        {
+            "id": "ORD-015",
+            "name": "Asymmetric Refund Over-Clawback",
+            "test_goal": "Tests whether customer partial return claws back only that return amount, rather than over-deducting from vendor payout.",
+            "planted": "Partial return of ₹2,000 on 2026-07-20. Aggregator deducted full ₹3,500 from payout (₹1,500 over-clawback).",
+            "caught_verdict": generate_plain_language_narrative("ORD-015", "VARIANCE", 4780.0, 3280.0, -1500.0, "settlement-math", 0.85, "Refund clawback disparity", conn)["full_narrative"],
+            "status": "needs-review",
+            "impact": "₹1,500.00",
+        },
+        {
+            "id": "ORD-028",
+            "name": "TCS Filing Timing Buffer (Self-Skepticism)",
+            "test_goal": "Tests whether apparent missing tax credits are recognized as harmless timing differences pending GSTR-8 portal filing.",
+            "planted": "Settled on 2026-08-05 before GSTR-8 tax return filed on 2026-08-20. Apparent ₹100 TCS gap is calendar lag, not theft.",
+            "caught_verdict": generate_plain_language_narrative("ORD-028", "VARIANCE", 8600.0, 8700.0, 100.0, "tax-timing", 0.85, "TCS credit missing due to pending GSTR-8", conn)["full_narrative"],
+            "status": "auto-cleared",
+            "impact": "₹100.00",
+        },
+        {
+            "id": "NODAL-2026-08-14",
+            "name": "RBI Nodal Escrow Solvency Deficit",
+            "test_goal": "Tests whether an unexplained escrow balance break immediately trips automated stopping rules and halts the batch.",
+            "planted": "On 2026-08-14, closing balance of ₹749,061.43 diverged by an unexplained ₹50,000 deficit from Opening + Collected - Settled.",
+            "caught_verdict": generate_plain_language_narrative("NODAL-2026-08-14", "VARIANCE", 799061.43, 749061.43, -50000.0, "structural/compliance", 1.0, "Nodal account balance break", conn)["full_narrative"],
+            "status": "escalated",
+            "impact": "₹50,000.00",
+        }
+    ]
 
-    # Search & status filter for all records
-    c_ar1, c_ar2, c_ar3 = st.columns([2, 2, 2])
-    with c_ar1:
-        st_filter = st.selectbox("Status Filter", ["All Records", "MATCHED (Clean)", "VARIANCE (Exception)"], key="ar_st_filter")
-    with c_ar2:
-        cat_filter = st.selectbox("Category Filter", ["All Categories"] + sorted(audited_df["exception_category"].unique().tolist()), key="ar_cat_filter")
-    with c_ar3:
-        search_ar = st.text_input("Search Order ID", placeholder="e.g. ORD-001", key="ar_search")
-
-    filtered_ar = audited_df.copy()
-    if st_filter == "MATCHED (Clean)":
-        filtered_ar = filtered_ar[filtered_ar["status"] == "MATCHED"]
-    elif st_filter == "VARIANCE (Exception)":
-        filtered_ar = filtered_ar[filtered_ar["status"] == "VARIANCE"]
-
-    if cat_filter != "All Categories":
-        filtered_ar = filtered_ar[filtered_ar["exception_category"] == cat_filter]
-
-    if search_ar:
-        filtered_ar = filtered_ar[filtered_ar["record_id"].str.contains(search_ar, case=False, na=False)]
-
-    st.markdown(f"**Displaying {len(filtered_ar)} of {len(audited_df)} records:**")
-
-    # 3-LEVEL HIERARCHY:
-    for _, row in filtered_ar.iterrows():
-        is_clean = row["status"] == "MATCHED"
-        badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
-        delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
-        
-        # Level 2 Scannable Row Header
-        expander_title = (
-            f"{'🟢' if is_clean else '🔴'} {row['record_id']}  |  "
-            f"Exp: ₹{row['expected_amount']:,.2f}  |  "
-            f"Act: ₹{row['actual_amount']:,.2f}  |  "
-            f"Δ: {delta_str}  ·  {row['headline_summary']}"
-        )
-        
-        with st.expander(expander_title):
-            # Level 3 Prose Reveal
-            st.markdown(f"""<div class="explanation-narrative-box">
-                <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
-                    Financial Auditor Narrative (Pass 2 Verified)
+    for seed in manifest_seeds:
+        chip_cls = "chip-review" if seed["status"] == "needs-review" else ("chip-matched" if seed["status"] == "auto-cleared" else "chip-escalated")
+        st.markdown(f"""<div class="seed-card">
+            <div class="seed-header">
+                <div>
+                    <span class="seed-id">{seed['id']}</span> &nbsp;·&nbsp; <strong style="color:#ffffff;">{seed['name']}</strong>
                 </div>
-                {row['full_narrative']}
-            </div>""", unsafe_allow_html=True)
-            
-            ec1, ec2, ec3 = st.columns([1, 1, 2])
-            with ec1:
-                st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Classification:** `{row['exception_category']}`")
-            with ec2:
-                st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
-                st.markdown(f"**Audit Gate:** `Pass 2 Independent Verifier`")
-            with ec3:
-                st.markdown(f"**Rule Trace:**")
-                st.caption(row["reason"])
+                <div>
+                    <span class="badge-chip {chip_cls}">{seed['status']}</span>
+                    <span class="mono" style="font-weight:700; color:#fb7185; margin-left:8px;">{seed['impact']}</span>
+                </div>
+            </div>
+            <div class="seed-desc">
+                <strong>Target Failure Mode:</strong> {seed['test_goal']}<br>
+                <strong>Planted Corruption:</strong> {seed['planted']}
+            </div>
+            <div class="seed-proof">
+                <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Engine Plain-Language Explanation:</div>
+                <div>{seed['caught_verdict']}</div>
+            </div>
+        </div>""", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 3: SMART EXCEPTION TRIAGE & LEDGER
+# TAB 3: EXCEPTIONS & TRIAGE (TRIMMED COLUMNS FOR 1400px)
 # ════════════════════════════════════════════════════════════════
 with tab_exceptions:
     st.markdown("""<div class="section-card">
@@ -761,30 +739,26 @@ with tab_exceptions:
     with tf4:
         search_query = st.text_input("Search Order / Ref", placeholder="e.g. ORD-001, NODAL", key="triage_search")
 
-    # Min/Max ₹ Exposure slider for live probing
     exc_df = report["exceptions_df"].copy()
     orders_map = pd.read_sql_query("SELECT order_id, vendor_id, category, gross_amount FROM orders", conn)
     exc_merged = pd.merge(exc_df, orders_map, on="order_id", how="left")
     exc_merged["vendor_id"] = exc_merged["vendor_id"].fillna("NODAL-LEDGER")
     exc_merged["category"] = exc_merged["category"].fillna("Nodal Escrow")
 
-    # Attach Human-Readable Narrative to each exception for clean display
+    # Attach plain-language summaries
     narratives_map = {r["record_id"]: r["headline_summary"] for r in audited_records_enriched}
     for nb in two_pass_result.get("nodal_breaks", []):
         nb_narrative = generate_plain_language_narrative(
-            record_id=nb["record_id"],
-            status=nb["status"],
-            expected_amount=nb["expected_amount"],
-            actual_amount=nb["actual_amount"],
-            variance_delta=nb["variance_delta"],
-            exception_category=nb["exception_category"],
-            confidence_score=nb["confidence_score"],
-            reason=nb["reason"],
-            conn=conn
+            record_id=nb["record_id"], status=nb["status"],
+            expected_amount=nb["expected_amount"], actual_amount=nb["actual_amount"],
+            variance_delta=nb["variance_delta"], exception_category=nb["exception_category"],
+            confidence_score=nb["confidence_score"], reason=nb["reason"], conn=conn
         )
         narratives_map[nb["record_id"]] = nb_narrative["headline_summary"]
 
-    exc_merged["plain_explanation"] = exc_merged["order_id"].map(lambda oid: narratives_map.get(oid, "Discrepancy detected during settlement reconciliation."))
+    exc_merged["plain_explanation"] = exc_merged["order_id"].map(
+        lambda oid: narratives_map.get(oid, "Discrepancy detected during settlement reconciliation.")
+    )
 
     max_impact = float(exc_merged["rupee_impact"].max()) if not exc_merged.empty else 50000.0
     impact_range = st.slider("₹ Impact Range", min_value=0.0, max_value=max_impact, value=(0.0, max_impact), step=500.0, format="₹%d")
@@ -798,10 +772,8 @@ with tab_exceptions:
     if search_query:
         exc_merged = exc_merged[exc_merged["order_id"].str.contains(search_query, case=False, na=False) |
                                 exc_merged["exception_id"].str.contains(search_query, case=False, na=False)]
-    
     exc_merged = exc_merged[(exc_merged["rupee_impact"] >= impact_range[0]) & (exc_merged["rupee_impact"] <= impact_range[1])]
 
-    # Conditional color-coding for status
     def highlight_status(val):
         if val == "escalated":
             return "background-color: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: bold;"
@@ -811,118 +783,124 @@ with tab_exceptions:
             return "background-color: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: bold;"
         return ""
 
-    styled_exc = exc_merged[[
-        "exception_id", "order_id", "vendor_id", "category",
-        "exception_type", "rupee_impact", "confidence_score", "status", "plain_explanation"
-    ]].style.map(highlight_status, subset=["status"])
+    # PART 3 FIX: Show only the 6 most essential columns that fit at 1400px.
+    # Confidence and Vendor available via expander row in All Records tab.
+    display_cols = ["order_id", "exception_type", "rupee_impact", "status", "plain_explanation"]
+    styled_exc = exc_merged[display_cols].style.map(highlight_status, subset=["status"])
 
     st.dataframe(
         styled_exc,
         column_config={
-            "exception_id": st.column_config.TextColumn("Ref #", width="small"),
             "order_id": st.column_config.TextColumn("Order ID", width="small"),
-            "vendor_id": st.column_config.TextColumn("Vendor", width="small"),
-            "category": st.column_config.TextColumn("Category", width="small"),
             "exception_type": st.column_config.TextColumn("Classification", width="medium"),
             "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
-            "confidence_score": st.column_config.ProgressColumn("Confidence", min_value=0.0, max_value=1.0, format="%.3f"),
             "status": st.column_config.TextColumn("Status", width="small"),
-            "plain_explanation": st.column_config.TextColumn("Plain Language Explanation", width="large")
+            "plain_explanation": st.column_config.TextColumn("Plain Language Explanation", width="large"),
         },
         use_container_width=True,
         hide_index=True
     )
 
     st.caption(f"Displaying **{len(exc_merged)}** filtered exceptions (Total exposure: **₹{exc_merged['rupee_impact'].sum():,.2f}**)")
+
+    # Expandable detail for the full column set
+    with st.expander("📊 View Full Detail Columns (Ref #, Vendor, Category, Confidence)"):
+        full_display = exc_merged[["exception_id", "order_id", "vendor_id", "category", "exception_type", "rupee_impact", "confidence_score", "status"]].copy()
+        st.dataframe(
+            full_display,
+            column_config={
+                "exception_id": "Ref #",
+                "order_id": "Order ID",
+                "vendor_id": "Vendor",
+                "category": "Category",
+                "exception_type": "Classification",
+                "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
+                "confidence_score": st.column_config.ProgressColumn("Confidence", min_value=0.0, max_value=1.0, format="%.3f"),
+                "status": "Status",
+            },
+            use_container_width=True,
+            hide_index=True
+        )
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 4: THE "SEEDED EDGE CASES" SHOWCASE PANEL
+# TAB 4: ALL RECORDS (TWO-PASS)
 # ════════════════════════════════════════════════════════════════
-with tab_seeded:
+with tab_all_records:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
-            <span>🎯 Seeded Edge Cases — Adversarial Verification Proof</span>
-            <span style="color:#34d399; font-weight:700; font-size:0.78rem;">4 of 4 Detected (100% Precision)</span>
+            <span>📋 Complete Batch Ledger — 100% Record Transparency</span>
+            <span style="color:#38bdf8; font-weight:700; font-size:0.78rem;">✓ Pass 1 Mapped + Pass 2 Audited</span>
         </div>
-        <p style="font-size:0.82rem; color:#94a3b8; margin-top:-6px;">
-            To prove SplitGuard AI does not silently smooth over edge cases or hallucinate clean matches, we deliberately seeded <strong>4 tricky real-world failure vectors</strong> into the synthetic dataset. Here is exactly what was tested and how the engine caught it:
+        <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px;">
+            Every single order processed through the two-pass engine. Expand any row to read its complete financial audit narrative explaining what was expected, what occurred, and why it is classified that way.
         </p>
     </div>""", unsafe_allow_html=True)
 
-    manifest_seeds = [
-        {
-            "id": "ORD-001",
-            "name": "Retroactive Commission Slab Drift",
-            "test_goal": "Tests whether orders placed under a July contract rate (10%) mistakenly settle under August's lower rate (7%) when settled in August.",
-            "planted": "Order placed 2026-07-25 (gross ₹10,000, 10% = ₹1,000 comm). Settled on 2026-08-02 where aggregator deducted ₹700.",
-            "caught_verdict": generate_plain_language_narrative("ORD-001", "VARIANCE", 8700.0, 9000.0, 300.0, "settlement-math", 0.72, "Commission slab mismatch", conn)["full_narrative"],
-            "status": "needs-review",
-            "impact": "₹300.00",
-            "badge": "settlement-math"
-        },
-        {
-            "id": "ORD-015",
-            "name": "Asymmetric Refund Over-Clawback",
-            "test_goal": "Tests whether customer partial return claws back only that return amount, rather than over-deducting from vendor payout.",
-            "planted": "Partial return of ₹2,000 on 2026-07-20. Aggregator deducted full ₹3,500 from payout (₹1,500 over-clawback).",
-            "caught_verdict": generate_plain_language_narrative("ORD-015", "VARIANCE", 4780.0, 3280.0, -1500.0, "settlement-math", 0.85, "Refund clawback disparity", conn)["full_narrative"],
-            "status": "needs-review",
-            "impact": "₹1,500.00",
-            "badge": "settlement-math"
-        },
-        {
-            "id": "ORD-028",
-            "name": "TCS Filing Timing Buffer (Self-Skepticism)",
-            "test_goal": "Tests whether apparent missing tax credits are recognized as harmless timing differences pending GSTR-8 portal filing.",
-            "planted": "Settled on 2026-08-05 before GSTR-8 tax return filed on 2026-08-20. Apparent ₹100 TCS gap is calendar lag, not theft.",
-            "caught_verdict": generate_plain_language_narrative("ORD-028", "VARIANCE", 8600.0, 8700.0, 100.0, "tax-timing", 0.85, "TCS credit missing due to pending GSTR-8", conn)["full_narrative"],
-            "status": "auto-cleared",
-            "impact": "₹100.00",
-            "badge": "tax-timing"
-        },
-        {
-            "id": "NODAL-2026-08-14",
-            "name": "RBI Nodal Escrow Solvency Deficit",
-            "test_goal": "Tests whether an unexplained escrow balance break immediately trips automated stopping rules and halts the batch.",
-            "planted": "On 2026-08-14, closing balance of ₹749,061.43 diverged by an unexplained ₹50,000 deficit from Opening + Collected - Settled.",
-            "caught_verdict": generate_plain_language_narrative("NODAL-2026-08-14", "VARIANCE", 799061.43, 749061.43, -50000.0, "structural/compliance", 1.0, "Nodal account balance break", conn)["full_narrative"],
-            "status": "escalated",
-            "impact": "₹50,000.00",
-            "badge": "structural/compliance"
-        }
-    ]
+    audited_df = pd.DataFrame(audited_records_enriched)
 
-    for seed in manifest_seeds:
-        st.markdown(f"""<div class="seed-card">
-            <div class="seed-header">
-                <div>
-                    <span class="seed-id">{seed['id']}</span> &nbsp;·&nbsp; <strong style="color:#ffffff;">{seed['name']}</strong>
+    c_ar1, c_ar2, c_ar3 = st.columns([2, 2, 2])
+    with c_ar1:
+        st_filter = st.selectbox("Status Filter", ["All Records", "MATCHED (Clean)", "VARIANCE (Exception)"], key="ar_st_filter")
+    with c_ar2:
+        cat_filter = st.selectbox("Category Filter", ["All Categories"] + sorted(audited_df["exception_category"].unique().tolist()), key="ar_cat_filter")
+    with c_ar3:
+        search_ar = st.text_input("Search Order ID", placeholder="e.g. ORD-001", key="ar_search")
+
+    filtered_ar = audited_df.copy()
+    if st_filter == "MATCHED (Clean)":
+        filtered_ar = filtered_ar[filtered_ar["status"] == "MATCHED"]
+    elif st_filter == "VARIANCE (Exception)":
+        filtered_ar = filtered_ar[filtered_ar["status"] == "VARIANCE"]
+
+    if cat_filter != "All Categories":
+        filtered_ar = filtered_ar[filtered_ar["exception_category"] == cat_filter]
+    if search_ar:
+        filtered_ar = filtered_ar[filtered_ar["record_id"].str.contains(search_ar, case=False, na=False)]
+
+    st.markdown(f"**Displaying {len(filtered_ar)} of {len(audited_df)} records:**")
+
+    for _, row in filtered_ar.iterrows():
+        is_clean = row["status"] == "MATCHED"
+        badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
+        delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
+
+        expander_title = (
+            f"{'🟢' if is_clean else '🔴'} {row['record_id']}  |  "
+            f"Exp: ₹{row['expected_amount']:,.2f}  |  "
+            f"Act: ₹{row['actual_amount']:,.2f}  |  "
+            f"Δ: {delta_str}  ·  {row['headline_summary']}"
+        )
+
+        with st.expander(expander_title):
+            st.markdown(f"""<div class="explanation-narrative-box">
+                <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+                    Financial Auditor Narrative (Pass 2 Verified)
                 </div>
-                <div>
-                    <span class="badge-chip {'chip-review' if seed['status'] == 'needs-review' else ('chip-matched' if seed['status'] == 'auto-cleared' else 'chip-escalated')}">{seed['status']}</span>
-                    <span class="mono" style="font-weight:700; color:#fb7185; margin-left:8px;">{seed['impact']}</span>
-                </div>
-            </div>
-            <div class="seed-desc">
-                <strong>Target Failure Mode:</strong> {seed['test_goal']}<br>
-                <strong>Planted Corruption:</strong> {seed['planted']}
-            </div>
-            <div class="seed-proof">
-                <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Engine Plain-Language Explanation:</div>
-                <div>{seed['caught_verdict']}</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+                {row['full_narrative']}
+            </div>""", unsafe_allow_html=True)
+
+            ec1, ec2, ec3 = st.columns([1, 1, 2])
+            with ec1:
+                st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
+                st.markdown(f"**Classification:** `{row['exception_category']}`")
+            with ec2:
+                st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
+                st.markdown(f"**Audit Gate:** `Pass 2 Independent Verifier`")
+            with ec3:
+                st.markdown("**Rule Trace:**")
+                st.caption(row["reason"])
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 5: ORDER DIAGNOSTIC & RECOVERY (FORENSIC WATERFALL)
+# TAB 5: ORDER DIAGNOSTIC & RECOVERY
 # ════════════════════════════════════════════════════════════════
 with tab_diagnostic:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
-            <span>🔬 Forensic Order Inspector & Remediation Hub</span>
+            <span>🔬 Forensic Order Inspector &amp; Remediation Hub</span>
             <span style="font-size:0.75rem; color:#94a3b8;">Line-by-Line Comparative Audit</span>
         </div>""", unsafe_allow_html=True)
 
@@ -942,7 +920,6 @@ with tab_diagnostic:
     has_exception = not exc_match.empty
     exc_info = exc_match.iloc[0] if has_exception else None
 
-    # Generate or fetch plain-language narrative for target order
     order_narrative = generate_plain_language_narrative(
         record_id=target_order,
         status="VARIANCE" if has_exception else "MATCHED",
@@ -958,7 +935,7 @@ with tab_diagnostic:
     with col_target_info:
         if has_exception:
             exc_t = exc_info["exception_type"]
-            chip_class = "chip-math" if exc_t == "settlement-math" else ("chip-timing" if exc_t == "tax-timing" else "chip-compliance")
+            chip_class = "chip-review" if exc_t == "settlement-math" else ("chip-timing" if exc_t == "tax-timing" else "chip-escalated")
             delta_val = order_detail['payout_delta']
             st.markdown(f"""<div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid rgba(148,163,184,0.14); margin-top:24px;">
                 <div>
@@ -971,13 +948,12 @@ with tab_diagnostic:
             </div>""", unsafe_allow_html=True)
         else:
             st.markdown("""<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
-                <span class="badge-chip chip-cleared">✓ CLEAN RECONCILIATION</span>
+                <span class="badge-chip chip-matched">✓ CLEAN RECONCILIATION</span>
                 <span style="font-size:0.92rem; font-weight:800; color:#34d399;">Variance: ₹0.00</span>
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
-    # Level 3 Prose Box in Diagnostic View
     st.markdown(f"""<div class="explanation-narrative-box">
         <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
             Auditor Case Narrative — {target_order}
@@ -985,7 +961,6 @@ with tab_diagnostic:
         {order_narrative['full_narrative']}
     </div>""", unsafe_allow_html=True)
 
-    # 2 Column Forensic Grid
     diag_c1, diag_c2 = st.columns([13, 10])
 
     with diag_c1:
@@ -996,15 +971,24 @@ with tab_diagnostic:
         tds_delta = order_detail["tds_delta"]
         payout_delta = order_detail["payout_delta"]
 
+        comm_var_cls = "variance" if abs(comm_delta) > 0.01 else ""
+        tcs_var_cls = "variance" if abs(tcs_delta) > 0.01 else ""
+        tds_var_cls = "variance" if abs(tds_delta) > 0.01 else ""
+
+        comm_delta_cls = "delta-bad" if abs(comm_delta) > 0.01 else "delta-good"
+        tcs_delta_cls = "delta-timing" if abs(tcs_delta) > 0.01 else "delta-good"
+        tds_delta_cls = "delta-bad" if abs(tds_delta) > 0.01 else "delta-good"
+        payout_delta_cls = "delta-bad" if abs(payout_delta) > 0.01 else "delta-good"
+
+        comm_sign = "+" if comm_delta > 0 else ""
+        tcs_sign = "+" if tcs_delta > 0 else ""
+        tds_sign = "+" if tds_delta > 0 else ""
+        payout_sign = "+" if payout_delta > 0 else ""
+
         st.markdown(f"""<div class="wf-table-container">
             <table class="wf-table">
                 <thead>
-                    <tr>
-                        <th>Line Item</th>
-                        <th>Expected</th>
-                        <th>Actual</th>
-                        <th>Variance (Δ)</th>
-                    </tr>
+                    <tr><th>Line Item</th><th>Expected</th><th>Actual</th><th>Variance (Δ)</th></tr>
                 </thead>
                 <tbody>
                     <tr class="wf-row">
@@ -1013,23 +997,23 @@ with tab_diagnostic:
                         <td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
                         <td class="delta-good">₹0.00</td>
                     </tr>
-                    <tr class="wf-row {'variance' if abs(comm_delta) > 0.01 else ''}">
+                    <tr class="wf-row {comm_var_cls}">
                         <td>Commission ({order_detail['comm_rate']*100:.1f}%)</td>
                         <td class="mono">₹{order_detail['expected_comm']:,.2f}</td>
                         <td class="mono">₹{order_detail['actual_comm']:,.2f}</td>
-                        <td class="{'delta-bad' if abs(comm_delta) > 0.01 else 'delta-good'}">{'+' if comm_delta > 0 else ''}₹{comm_delta:,.2f}</td>
+                        <td class="{comm_delta_cls}">{comm_sign}₹{comm_delta:,.2f}</td>
                     </tr>
-                    <tr class="wf-row {'variance' if abs(tcs_delta) > 0.01 else ''}">
+                    <tr class="wf-row {tcs_var_cls}">
                         <td>TCS Withholding (1.0%)</td>
                         <td class="mono">₹{order_detail['expected_tcs']:,.2f}</td>
                         <td class="mono">₹{order_detail['actual_tcs']:,.2f}</td>
-                        <td class="{'delta-timing' if abs(tcs_delta) > 0.01 else 'delta-good'}">{'+' if tcs_delta > 0 else ''}₹{tcs_delta:,.2f}</td>
+                        <td class="{tcs_delta_cls}">{tcs_sign}₹{tcs_delta:,.2f}</td>
                     </tr>
-                    <tr class="wf-row {'variance' if abs(tds_delta) > 0.01 else ''}">
+                    <tr class="wf-row {tds_var_cls}">
                         <td>TDS (Sec 194-O)</td>
                         <td class="mono">₹{order_detail['expected_tds']:,.2f}</td>
                         <td class="mono">₹{order_detail['actual_tds']:,.2f}</td>
-                        <td class="{'delta-bad' if abs(tds_delta) > 0.01 else 'delta-good'}">{'+' if tds_delta > 0 else ''}₹{tds_delta:,.2f}</td>
+                        <td class="{tds_delta_cls}">{tds_sign}₹{tds_delta:,.2f}</td>
                     </tr>
                     <tr class="wf-row">
                         <td>Logistics Fee</td>
@@ -1047,7 +1031,7 @@ with tab_diagnostic:
                         <td>NET VENDOR PAYOUT</td>
                         <td class="mono">₹{order_detail['expected_payout']:,.2f}</td>
                         <td class="mono">₹{order_detail['actual_payout']:,.2f}</td>
-                        <td class="{'delta-bad' if abs(payout_delta) > 0.01 else 'delta-good'}">{'+' if payout_delta > 0 else ''}₹{payout_delta:,.2f}</td>
+                        <td class="{payout_delta_cls}">{payout_sign}₹{payout_delta:,.2f}</td>
                     </tr>
                 </tbody>
             </table>
@@ -1055,12 +1039,14 @@ with tab_diagnostic:
 
     with diag_c2:
         st.markdown("##### 🤖 Operations Remediation Actions")
-        
+
         if has_exception:
             if exc_info["exception_type"] == "settlement-math":
                 if st.button("📝 Generate Official Debit Note to Aggregator", key="btn_debit_note", type="primary", use_container_width=True):
-                    dn_res = generate_debit_note(conn, target_order, "Payment Aggregator", "Next Settlement Cycle (T+1)")
-                    st.markdown(f"""<div class="voucher-card" style="background:#091224; border:1px solid rgba(14,165,233,0.35); border-radius:10px; padding:14px; margin-top:8px;">
+                    dn_conn = sqlite3.connect(DB_PATH)
+                    dn_res = generate_debit_note(dn_conn, target_order, "Payment Aggregator", "Next Settlement Cycle (T+1)")
+                    dn_conn.close()
+                    st.markdown(f"""<div style="background:#091224; border:1px solid rgba(14,165,233,0.35); border-radius:10px; padding:14px; margin-top:8px;">
                         <div style="color:#38bdf8; font-weight:800; border-bottom:1px solid rgba(148,163,184,0.15); padding-bottom:6px; margin-bottom:8px;">
                             OFFICIAL DEBIT NOTE: {dn_res['note_id']}
                         </div>
@@ -1069,18 +1055,26 @@ with tab_diagnostic:
                     </div>""", unsafe_allow_html=True)
             elif exc_info["exception_type"] == "tax-timing":
                 if st.button("⏳ Queue for GSTR-8 Auto-Release Sync", key="btn_gstr8_sync", type="primary", use_container_width=True):
-                    schedule_gstr8_sync(conn, target_order, order_detail["vendor_id"], "2026-08-20")
+                    gs_conn = sqlite3.connect(DB_PATH)
+                    schedule_gstr8_sync(gs_conn, target_order, order_detail["vendor_id"], "2026-08-20")
+                    gs_conn.close()
                     st.success(f"✅ Order **{target_order}** queued for automated tax clearance upon GSTR-8 portal filing verification.")
             else:
                 if st.button("🚨 Dispatch Compliance Freeze Alert to Banking Escrow", key="btn_escrow_freeze", type="primary", use_container_width=True):
-                    trigger_escrow_freeze(conn, order_detail["order_date"], order_detail["gross_amount"])
+                    ef_conn = sqlite3.connect(DB_PATH)
+                    trigger_escrow_freeze(ef_conn, order_detail["order_date"], order_detail["gross_amount"])
+                    ef_conn.close()
                     st.warning(f"⚠️ Emergency Freeze notification dispatched to Escrow Banking Ops for **{target_order}**.")
 
             with st.expander("🛠️ Manual Dispute Override / Review Notes"):
                 new_st = st.selectbox("Update Resolution Status", ["auto-cleared", "needs-review", "escalated"], key="override_status")
                 override_note = st.text_input("Operational Note", placeholder="e.g. Approved after vendor audit call", key="override_note")
                 if st.button("Save Override Record", key="btn_save_override"):
-                    update_dispute_status(conn, target_order, new_st, override_note)
+                    ov_conn = sqlite3.connect(DB_PATH)
+                    update_dispute_status(ov_conn, target_order, new_st, override_note)
+                    ov_conn.close()
+                    # Refresh cached data after override
+                    st.session_state["pipeline_data"] = _load_all_data()
                     st.toast(f"Status for {target_order} updated to {new_st}!", icon="✅")
                     st.rerun()
         else:
@@ -1095,7 +1089,7 @@ with tab_diagnostic:
 with tab_simulator:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
-            <span>🧮 Vendor 360° Profile & What-If Policy Simulator</span>
+            <span>🧮 Vendor 360° Profile &amp; What-If Policy Simulator</span>
             <span style="font-size:0.75rem; color:#94a3b8;">Portfolio Impact Modeling</span>
         </div>""", unsafe_allow_html=True)
 
@@ -1158,6 +1152,9 @@ with tab_simulator:
         sim_res = simulate_policy_shift(conn, commission_adj_pct=sim_comm_adj, tds_rate=sim_tds_rate)
         net_rev_shift = sim_res["platform_revenue_shift"]
 
+        rev_color = "#34d399" if net_rev_shift >= 0 else "#fb7185"
+        rev_sign = "+" if net_rev_shift >= 0 else ""
+
         st.markdown(f"""<div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(148,163,184,0.15);">
                 <div style="font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Projected Portfolio Impact</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
@@ -1166,8 +1163,8 @@ with tab_simulator:
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
                     <span>Platform Revenue Shift:</span>
-                    <span class="mono" style="font-weight:700; color:{'#34d399' if net_rev_shift >= 0 else '#fb7185'};">
-                        {'+' if net_rev_shift >= 0 else ''}₹{net_rev_shift:,.2f}
+                    <span class="mono" style="font-weight:700; color:{rev_color};">
+                        {rev_sign}₹{net_rev_shift:,.2f}
                     </span>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
@@ -1181,19 +1178,19 @@ with tab_simulator:
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 7: REGULATORY AUDIT TRAIL
+# TAB 7: REGULATORY AUDIT TRAIL (TRIMMED COLUMNS)
 # ════════════════════════════════════════════════════════════════
 with tab_audit:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>📜 Immutable Regulatory Compliance Audit Trail</span>
-            <span style="font-size:0.75rem; color:#94a3b8;">RBI & Statutory Trace</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">RBI &amp; Statutory Trace</span>
         </div>""", unsafe_allow_html=True)
 
     ac1, ac2 = st.columns([1, 4])
     with ac1:
         audit_depth = st.slider("Events Depth", min_value=5, max_value=60, value=25, key="audit_depth_slider")
-        
+
         audit_cert = {
             "certificate_id": f"RECON-CERT-{datetime.now().strftime('%Y%m%d%H%M')}",
             "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1206,7 +1203,7 @@ with tab_audit:
             "compliance_standards": ["Section 52 CGST Act", "Section 194-O Income Tax", "RBI Nodal Account Directions"]
         }
         st.download_button(
-            label="📥 Download Audit Certificate (JSON)",
+            label="📥 Audit Certificate (JSON)",
             data=json.dumps(audit_cert, indent=2),
             file_name=f"recon_audit_certificate_{datetime.now().strftime('%Y%m%d')}.json",
             mime="application/json",
@@ -1215,7 +1212,7 @@ with tab_audit:
 
         csv_data = report["exceptions_df"].to_csv(index=False)
         st.download_button(
-            label="📥 Export Exception Ledger (CSV)",
+            label="📥 Exception Ledger (CSV)",
             data=csv_data,
             file_name=f"settlement_exceptions_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -1223,15 +1220,15 @@ with tab_audit:
         )
 
     with ac2:
+        # PART 3 FIX: Show only the 4 essential columns; 'detail' in full-width
         recent_audit = audit_df.tail(audit_depth).sort_values("log_id", ascending=False)
         st.dataframe(
-            recent_audit[["log_id", "timestamp", "stage", "action", "detail"]],
+            recent_audit[["log_id", "timestamp", "action", "detail"]],
             column_config={
                 "log_id": st.column_config.NumberColumn("#", width="small"),
                 "timestamp": st.column_config.TextColumn("Timestamp", width="medium"),
-                "stage": st.column_config.TextColumn("Pipeline Stage", width="small"),
-                "action": st.column_config.TextColumn("Action Code", width="medium"),
-                "detail": st.column_config.TextColumn("Regulatory & Pipeline Trace Detail", width="large"),
+                "action": st.column_config.TextColumn("Action", width="medium"),
+                "detail": st.column_config.TextColumn("Detail", width="large"),
             },
             use_container_width=True,
             hide_index=True
@@ -1240,7 +1237,7 @@ with tab_audit:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ───────────────── 6. WHAT THIS SYSTEM DOES NOT DO (HONEST SCOPE) ─────────────────
+# ───────────────── HONEST SCOPE BOX ─────────────────
 st.markdown("""<div class="scope-box">
     <div class="scope-title">
         <span>🛡️ What SplitGuard AI Explicitly Does NOT Do (Deliberate Scope Boundaries)</span>
@@ -1262,8 +1259,8 @@ st.markdown("""<div class="scope-box">
 
 # ───────────────── GLOBAL FOOTER ─────────────────
 st.markdown("""<div class="app-footer">
-    <strong>SplitGuard AI</strong> — Autonomous Split-Settlement Reconciliation & Escrow Integrity Engine<br>
-    Built for <a href="https://razorpay.com" target="_blank">Razorpay AI Buildathon 2026</a> · Compliant with RBI Nodal Directions & Section 52/194-O Statutory Withholdings<br>
+    <strong>SplitGuard AI</strong> — Autonomous Split-Settlement Reconciliation &amp; Escrow Integrity Engine<br>
+    Built for <a href="https://razorpay.com" target="_blank">Razorpay AI Buildathon 2026</a> · Compliant with RBI Nodal Directions &amp; Section 52/194-O Statutory Withholdings<br>
     <a href="https://github.com/ParthKhandelwal537/split-settlement-leakage-detector" target="_blank">View GitHub Repository</a>
 </div>""", unsafe_allow_html=True)
 
