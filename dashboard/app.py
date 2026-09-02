@@ -34,9 +34,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ───────────────── STRIPE / LINEAR INSPIRED FINTECH DESIGN SYSTEM CSS ─────────────────
-st.markdown("""
-<style>
+# ───────────────── ULTRA-POLISHED STRIPE / LINEAR DESIGN SYSTEM CSS ─────────────────
+st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     :root {
@@ -52,15 +51,14 @@ st.markdown("""
         --brand-emerald: #10b981;
         --brand-rose: #f43f5e;
         --brand-amber: #f59e0b;
-        --brand-violet: #8b5cf6;
     }
 
-    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    * { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
     code, pre, .mono { font-family: 'JetBrains Mono', monospace !important; }
 
     .block-container {
-        padding-top: 1.0rem;
-        padding-bottom: 2.2rem;
+        padding-top: 1.0rem !important;
+        padding-bottom: 2.0rem !important;
         max-width: 96% !important;
     }
 
@@ -68,7 +66,7 @@ st.markdown("""
     .hero-banner {
         background: linear-gradient(135deg, #071329 0%, #0c234a 55%, #083366 100%);
         border-radius: 14px;
-        padding: 18px 24px;
+        padding: 16px 24px;
         margin-bottom: 16px;
         border: 1px solid rgba(14, 165, 233, 0.28);
         box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2);
@@ -79,7 +77,7 @@ st.markdown("""
         gap: 12px;
     }
     .hero-title {
-        font-size: 1.6rem;
+        font-size: 1.55rem;
         font-weight: 800;
         letter-spacing: -0.03em;
         margin: 0;
@@ -90,7 +88,7 @@ st.markdown("""
     }
     .hero-subtitle {
         color: #94a3b8;
-        font-size: 0.84rem;
+        font-size: 0.83rem;
         margin-top: 4px;
         max-width: 780px;
         line-height: 1.45;
@@ -114,87 +112,66 @@ st.markdown("""
         height: 8px;
         background: #10b981;
         border-radius: 50%;
-        animation: pulse-ring 2s ease-in-out infinite;
-    }
-    @keyframes pulse-ring {
-        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        box-shadow: 0 0 10px #10b981;
     }
 
-    /* ── LEVEL 1: HEADLINE METRICS ROW ── */
-    .headline-row {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-        margin-bottom: 20px;
-    }
-    @media (max-width: 1100px) {
-        .headline-row { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 600px) {
-        .headline-row { grid-template-columns: 1fr; }
-    }
-    .headline-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
+    /* ── STREAMLIT COLUMNS METRIC CARDS (CLEAN, ZERO HTML LEAK) ── */
+    .metric-card-box {
+        background: #0b1324;
+        border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 12px;
         padding: 16px 18px;
         position: relative;
         overflow: hidden;
-        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        min-height: 135px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.5);
     }
-    .headline-card:hover {
-        transform: translateY(-2px);
-        border-color: var(--border-focus);
-        box-shadow: 0 8px 24px -6px rgba(14, 165, 233, 0.2);
-    }
-    .headline-stripe {
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
-    }
-    .headline-label {
-        font-size: 0.72rem;
+    .metric-stripe-blue { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #0ea5e9); }
+    .metric-stripe-red { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #f43f5e, #e11d48); }
+    .metric-stripe-amber { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .metric-stripe-green { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #10b981, #059669); }
+
+    .metric-label-txt {
+        font-size: 0.70rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         color: #94a3b8;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
-    .headline-value {
-        font-size: 1.95rem;
+    .metric-value-txt {
+        font-size: 1.85rem;
         font-weight: 800;
         letter-spacing: -0.03em;
         line-height: 1.2;
         margin: 2px 0;
     }
-    .headline-sub {
-        font-size: 0.75rem;
+    .metric-sub-txt {
+        font-size: 0.74rem;
         color: #64748b;
-        margin-top: 4px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        margin-bottom: 6px;
     }
-    .trust-indicator {
+    .metric-badge-txt {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        font-size: 0.70rem;
+        font-size: 0.68rem;
         font-weight: 700;
         padding: 2px 8px;
         border-radius: 6px;
-        margin-top: 4px;
+        width: fit-content;
     }
-    .trust-high { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .trust-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .trust-crit { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-green-bg { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .badge-amber-bg { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .badge-red-bg { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
 
     /* ── SECTION CARDS ── */
     .section-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
+        background: #0b1324;
+        border: 1px solid rgba(148, 163, 184, 0.14);
         border-radius: 14px;
         padding: 20px 22px;
         margin-bottom: 18px;
@@ -209,35 +186,31 @@ st.markdown("""
         align-items: center;
     }
 
-    /* ── LEVEL 3: HUMAN-READABLE EXPLANATION CARD ── */
+    /* ── LEVEL 3: CALM PROSE EXPLANATION BOX ── */
     .explanation-narrative-box {
         background: #081020;
         border-radius: 10px;
         border: 1px solid rgba(14, 165, 233, 0.25);
         padding: 14px 18px;
         margin-top: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 10px;
         font-size: 0.82rem;
         color: #e2e8f0;
         line-height: 1.6;
         box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-    .explanation-narrative-box strong {
-        color: #38bdf8;
     }
 
     /* ── SEEDED CASES SHOWCASE CARDS ── */
     .seed-card {
         background: #091224;
         border-radius: 12px;
-        border: 1px solid var(--border-subtle);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         padding: 16px 18px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         transition: border-color 0.2s ease, transform 0.2s ease;
     }
     .seed-card:hover {
         border-color: rgba(14, 165, 233, 0.4);
-        transform: translateX(3px);
     }
     .seed-header {
         display: flex;
@@ -255,7 +228,6 @@ st.markdown("""
         font-size: 0.90rem;
         font-weight: 700;
         color: #f8fafc;
-        margin-bottom: 4px;
     }
     .seed-desc {
         font-size: 0.78rem;
@@ -266,13 +238,14 @@ st.markdown("""
     .seed-proof {
         background: rgba(15, 23, 42, 0.8);
         border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 0.78rem;
+        padding: 12px 14px;
+        font-size: 0.80rem;
         border-left: 3px solid #10b981;
-        line-height: 1.5;
+        line-height: 1.55;
+        color: #cbd5e1;
     }
 
-    /* ── STATUS BADGE CHIPS WITH MICRO-ANIMATIONS ── */
+    /* ── STATUS BADGE CHIPS ── */
     .badge-chip {
         font-size: 0.70rem;
         font-weight: 700;
@@ -281,32 +254,15 @@ st.markdown("""
         letter-spacing: 0.04em;
         text-transform: uppercase;
         display: inline-block;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .badge-chip:hover {
-        transform: scale(1.04);
     }
     .chip-matched { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
     .chip-review { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
     .chip-escalated { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
     .chip-timing { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.35); }
 
-    /* ── TWO-PASS VERIFICATION PILL ── */
-    .pass-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.68rem;
-        font-weight: 700;
-        padding: 3px 9px;
-        border-radius: 8px;
-        background: #091224;
-        border: 1px solid var(--border-subtle);
-    }
-
-    /* ── STRUCTURED WATERFALL COMPARISON TABLE ── */
+    /* ── WATERFALL TABLE ── */
     .wf-table-container {
-        border: 1px solid var(--border-subtle);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         border-radius: 10px;
         overflow: hidden;
         background: #091224;
@@ -325,13 +281,10 @@ st.markdown("""
         letter-spacing: 0.05em;
         padding: 8px 10px;
         text-align: left;
-        border-bottom: 1px solid var(--border-subtle);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
     }
     .wf-table th:last-child, .wf-table td:last-child { text-align: right; }
-    .wf-row {
-        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-        transition: background 0.15s ease;
-    }
+    .wf-row { border-bottom: 1px solid rgba(148, 163, 184, 0.08); }
     .wf-row:hover { background: #12203e; }
     .wf-row td { padding: 8px 10px; color: #cbd5e1; }
     .wf-row td:first-child { font-weight: 600; color: #f8fafc; }
@@ -347,7 +300,7 @@ st.markdown("""
     .delta-good { color: #34d399; font-weight: 600; }
     .delta-timing { color: #38bdf8; font-weight: 600; }
 
-    /* ── SCOPE TRANSPARENCY CARD (WHAT THIS SYSTEM DOES NOT DO) ── */
+    /* ── SCOPE TRANSPARENCY CARD ── */
     .scope-box {
         background: #081020;
         border: 1px dashed rgba(148, 163, 184, 0.28);
@@ -363,9 +316,6 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
     .scope-item {
         font-size: 0.76rem;
@@ -383,9 +333,8 @@ st.markdown("""
         border-top: 1px solid rgba(148, 163, 184, 0.1);
         margin-top: 28px;
     }
-    .app-footer a { color: var(--brand-blue); text-decoration: none; }
-</style>
-""", unsafe_allow_html=True)
+    .app-footer a { color: #0ea5e9; text-decoration: none; }
+</style>""", unsafe_allow_html=True)
 
 
 # ───────────────── PIPELINE CONTROLLERS ─────────────────
@@ -453,8 +402,7 @@ audited_records_enriched = attach_narratives_to_records(two_pass_result["audited
 
 
 # ───────────────── HERO BANNER ─────────────────
-st.markdown("""
-<div class="hero-banner">
+st.markdown("""<div class="hero-banner">
     <div>
         <div class="hero-title">
             <span>⚡ SplitGuard AI</span>
@@ -467,75 +415,73 @@ st.markdown("""
     <div>
         <span class="live-badge"><div class="pulse-dot"></div> 2-PASS AUDITOR ACTIVE</span>
     </div>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
 
-# ───────────────── LEVEL 1: HEADLINE METRICS ROW (TRUST-FOCUSED) ─────────────────
+# ───────────────── LEVEL 1: HEADLINE METRICS ROW (STREAMLIT NATIVE COLUMNS) ─────────────────
 esc_count = report['status_counts'].get('escalated', 0)
 rev_count = report['status_counts'].get('needs-review', 0)
 auto_count = report['status_counts'].get('auto-cleared', 0)
 total_orders = report['total_orders']
 
-# Total financial exposure at risk = Real Settlement Leakage + Structural Compliance Exposure
 total_inr_at_risk = report['total_settlement_leakage_inr'] + report['total_structural_exposure_inr']
 total_exceptions_count = report['total_exceptions']
 
-# Verified Trust Percentages
 clean_plus_timing = report['clean_orders'] + auto_count
 auto_resolved_pct = round((clean_plus_timing / (total_orders + len(two_pass_result.get('nodal_breaks', [])))) * 100.0, 1)
 flagged_review_pct = round(100.0 - auto_resolved_pct, 1)
 
-st.markdown(f"""
-<div class="headline-row">
-    <!-- Metric 1: Total Records & Match Rate -->
-    <div class="headline-card">
-        <div class="headline-stripe" style="background: linear-gradient(90deg, #3b82f6, #0ea5e9);"></div>
-        <div class="headline-label">Batch Match Rate</div>
-        <div class="headline-value" style="color: #38bdf8;">{report['match_rate']}%</div>
-        <div class="headline-sub">
-            <span class="mono" style="font-weight:700; color:#f8fafc;">{report['clean_orders']}</span> of <span class="mono" style="color:#f8fafc;">{total_orders}</span> orders matched clean
+# Render Level 1 via 4 Streamlit Native Columns for 100% Reliable, Leak-Free Layout
+mc1, mc2, mc3, mc4 = st.columns(4)
+
+with mc1:
+    st.markdown(f"""<div class="metric-card-box">
+        <div class="metric-stripe-blue"></div>
+        <div>
+            <div class="metric-label-txt">Batch Match Rate</div>
+            <div class="metric-value-txt" style="color: #38bdf8;">{report['match_rate']}%</div>
+            <div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#f8fafc;">{report['clean_orders']}</span> of <span class="mono" style="color:#f8fafc;">{total_orders}</span> clean</div>
         </div>
-        <span class="trust-indicator trust-high">✓ Pass 2 Zero-Variance Confirmed</span>
-    </div>
+        <div class="metric-badge-txt badge-green-bg">✓ Pass 2 Verified</div>
+    </div>""", unsafe_allow_html=True)
 
-    <!-- Metric 2: Exceptions & ₹ Value at Risk -->
-    <div class="headline-card">
-        <div class="headline-stripe" style="background: linear-gradient(90deg, #f43f5e, #e11d48);"></div>
-        <div class="headline-label">Total Exceptions & ₹ at Risk</div>
-        <div class="headline-value" style="color: #fb7185;">₹{total_inr_at_risk:,.0f}</div>
-        <div class="headline-sub">
-            <span class="mono" style="font-weight:700; color:#fb7185;">{total_exceptions_count} exceptions</span> (₹{report['total_settlement_leakage_inr']:,.0f} leakage)
+with mc2:
+    st.markdown(f"""<div class="metric-card-box">
+        <div class="metric-stripe-red"></div>
+        <div>
+            <div class="metric-label-txt">Exceptions & ₹ at Risk</div>
+            <div class="metric-value-txt" style="color: #fb7185;">₹{total_inr_at_risk:,.0f}</div>
+            <div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#fb7185;">{total_exceptions_count} exceptions</span> (₹{report['total_settlement_leakage_inr']:,.0f} leakage)</div>
         </div>
-        <span class="trust-indicator trust-crit">🚨 ₹-Ranked Exposure Invariant</span>
-    </div>
+        <div class="metric-badge-txt badge-red-bg">🚨 ₹-Ranked Invariant</div>
+    </div>""", unsafe_allow_html=True)
 
-    <!-- Metric 3: Human Review Trust Ratio -->
-    <div class="headline-card">
-        <div class="headline-stripe" style="background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
-        <div class="headline-label">Flagged for Human Ops Review</div>
-        <div class="headline-value" style="color: #fbbf24;">{rev_count + esc_count} <span style="font-size:1.05rem; font-weight:600; color:#94a3b8;">({flagged_review_pct}%)</span></div>
-        <div class="headline-sub">
-            <span>Escalated: <strong>{esc_count}</strong> &nbsp;|&nbsp; Needs Review: <strong>{rev_count}</strong></span>
+with mc3:
+    st.markdown(f"""<div class="metric-card-box">
+        <div class="metric-stripe-amber"></div>
+        <div>
+            <div class="metric-label-txt">Flagged for Human Review</div>
+            <div class="metric-value-txt" style="color: #fbbf24;">{rev_count + esc_count} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({flagged_review_pct}%)</span></div>
+            <div class="metric-sub-txt">Escalated: <strong>{esc_count}</strong> &nbsp;|&nbsp; Review: <strong>{rev_count}</strong></div>
         </div>
-        <span class="trust-indicator trust-warn">⚠️ Zero Silent Smoothing</span>
-    </div>
+        <div class="metric-badge-txt badge-amber-bg">⚠️ Zero Silent Smoothing</div>
+    </div>""", unsafe_allow_html=True)
 
-    <!-- Metric 4: Auto-Cleared Without Human Review -->
-    <div class="headline-card">
-        <div class="headline-stripe" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
-        <div class="headline-label">Auto-Resolved by Deterministic Rules</div>
-        <div class="headline-value" style="color: #34d399;">{clean_plus_timing} <span style="font-size:1.05rem; font-weight:600; color:#94a3b8;">({auto_resolved_pct}%)</span></div>
-        <div class="headline-sub">
-            <span>Clean: <strong>{report['clean_orders']}</strong> &nbsp;|&nbsp; GSTR-8 Buffer: <strong>{auto_count}</strong></span>
+with mc4:
+    st.markdown(f"""<div class="metric-card-box">
+        <div class="metric-stripe-green"></div>
+        <div>
+            <div class="metric-label-txt">Auto-Resolved by Rules</div>
+            <div class="metric-value-txt" style="color: #34d399;">{clean_plus_timing} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({auto_resolved_pct}%)</span></div>
+            <div class="metric-sub-txt">Clean: <strong>{report['clean_orders']}</strong> &nbsp;|&nbsp; GSTR-8: <strong>{auto_count}</strong></div>
         </div>
-        <span class="trust-indicator trust-high">🔒 GSTR-8 Timing Queue Active</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+        <div class="metric-badge-txt badge-green-bg">🔒 GSTR-8 Queue Active</div>
+    </div>""", unsafe_allow_html=True)
+
+st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
 
-# ───────────────── 6 STRUCTURED PRODUCTION TABS ─────────────────
+# ───────────────── 7 STRUCTURED PRODUCTION TABS ─────────────────
 tab_overview, tab_all_records, tab_exceptions, tab_seeded, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
     "📊 Overview & Solvency",
     "📋 All Records (Two-Pass)",
@@ -554,13 +500,11 @@ with tab_overview:
     col_chart_left, col_chart_right = st.columns([1, 1])
 
     with col_chart_left:
-        st.markdown("""
-        <div class="section-card">
+        st.markdown("""<div class="section-card">
             <div class="card-header-title">
                 <span>🎯 Variance by Classification Bucket</span>
                 <span style="font-size:0.75rem; color:#94a3b8;">3-Class Partition</span>
-            </div>
-        """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
         type_data = pd.DataFrame([
             {"Classification": k, "Count": v} for k, v in report["type_counts"].items()
@@ -592,13 +536,11 @@ with tab_overview:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_chart_right:
-        st.markdown("""
-        <div class="section-card">
+        st.markdown("""<div class="section-card">
             <div class="card-header-title">
                 <span>🏢 Top Financial Exposure by Entity</span>
                 <span style="font-size:0.75rem; color:#94a3b8;">Ranked Exposure (₹)</span>
-            </div>
-        """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
         exc_df = report["exceptions_df"].copy()
         orders_map = pd.read_sql_query("SELECT order_id, vendor_id FROM orders", conn)
@@ -645,13 +587,11 @@ with tab_overview:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Nodal Escrow Solvency Monitor
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>📈 Daily Nodal Account Solvency Monitor (RBI Directions)</span>
             <span style="font-size:0.75rem; color:#38bdf8;">62-Day Continuous Escrow Audit</span>
-        </div>
-    """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     nodal_df = pd.read_sql_query("SELECT date, opening_balance, collected, settled, closing_balance FROM nodal_account_ledger ORDER BY date", conn)
     nodal_df["expected_closing"] = round(nodal_df["opening_balance"] + nodal_df["collected"] - nodal_df["settled"], 2)
@@ -717,28 +657,24 @@ with tab_overview:
 
     st.altair_chart(nodal_chart, use_container_width=True)
 
-    st.markdown("""
-    <div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:8px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
+    st.markdown("""<div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:8px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
         ⚠️ <strong>Solvency Alert Detected:</strong> On <code>2026-08-14</code>, Nodal closing balance diverged by <strong>₹50,000.00</strong> deficit from mathematical formula (<code>Opening + Collected - Settled</code>). Automated batch processing halted under RBI circuit-breaker rules.
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    </div></div>""", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
 # TAB 2: ALL RECORDS (TWO-PASS VERIFICATION WITH 3-LEVEL PROSE AUDIT)
 # ════════════════════════════════════════════════════════════════
 with tab_all_records:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>📋 Complete Batch Ledger — 100% Record Transparency</span>
-            <span class="pass-pill" style="color:#38bdf8;">✓ Pass 1 Mapped + Pass 2 Audited</span>
+            <span style="color:#38bdf8; font-weight:700; font-size:0.78rem;">✓ Pass 1 Mapped + Pass 2 Audited</span>
         </div>
         <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px;">
             Every single order processed through the two-pass engine. Expand any row to read its complete financial audit narrative explaining what was expected, what occurred, and why it is classified that way.
         </p>
-    """, unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
 
     audited_df = pd.DataFrame(audited_records_enriched)
 
@@ -763,60 +699,52 @@ with tab_all_records:
     if search_ar:
         filtered_ar = filtered_ar[filtered_ar["record_id"].str.contains(search_ar, case=False, na=False)]
 
-    st.markdown(f"**Showing {len(filtered_ar)} of {len(audited_df)} records:**")
+    st.markdown(f"**Displaying {len(filtered_ar)} of {len(audited_df)} records:**")
 
     # 3-LEVEL HIERARCHY:
-    # Level 2: Header displays status badge, amounts, and scannable Level 2 one-line summary
-    # Level 3: Expanded card reveals the calm, human-readable full narrative paragraph
     for _, row in filtered_ar.iterrows():
         is_clean = row["status"] == "MATCHED"
         badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
         delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
         
-        # Level 2 Scannable Row
+        # Level 2 Scannable Row Header
         expander_title = (
-            f"{'🟢' if is_clean else '🔴'} {row['record_id']} &nbsp;|&nbsp; "
-            f"Exp: ₹{row['expected_amount']:,.2f} &nbsp;|&nbsp; "
-            f"Act: ₹{row['actual_amount']:,.2f} &nbsp;|&nbsp; "
-            f"Δ: {delta_str} &nbsp;·&nbsp; {row['headline_summary']}"
+            f"{'🟢' if is_clean else '🔴'} {row['record_id']}  |  "
+            f"Exp: ₹{row['expected_amount']:,.2f}  |  "
+            f"Act: ₹{row['actual_amount']:,.2f}  |  "
+            f"Δ: {delta_str}  ·  {row['headline_summary']}"
         )
         
         with st.expander(expander_title):
             # Level 3 Prose Reveal
-            st.markdown(f"""
-            <div class="explanation-narrative-box">
+            st.markdown(f"""<div class="explanation-narrative-box">
                 <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
                     Financial Auditor Narrative (Pass 2 Verified)
                 </div>
                 {row['full_narrative']}
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
             
             ec1, ec2, ec3 = st.columns([1, 1, 2])
             with ec1:
                 st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Classification Category:** `{row['exception_category']}`")
+                st.markdown(f"**Classification:** `{row['exception_category']}`")
             with ec2:
                 st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
                 st.markdown(f"**Audit Gate:** `Pass 2 Independent Verifier`")
             with ec3:
-                st.markdown(f"**Underlying Rule Trace:**")
+                st.markdown(f"**Rule Trace:**")
                 st.caption(row["reason"])
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
 # TAB 3: SMART EXCEPTION TRIAGE & LEDGER
 # ════════════════════════════════════════════════════════════════
 with tab_exceptions:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🔍 Interactive Exception Ledger (Ranked by ₹ Impact)</span>
             <span style="font-size:0.75rem; color:#94a3b8;">Multi-parameter Triage</span>
-        </div>
-    """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     tf1, tf2, tf3, tf4 = st.columns(4)
     vendors_df = pd.read_sql_query("SELECT DISTINCT vendor_id FROM orders", conn)
@@ -842,7 +770,6 @@ with tab_exceptions:
 
     # Attach Human-Readable Narrative to each exception for clean display
     narratives_map = {r["record_id"]: r["headline_summary"] for r in audited_records_enriched}
-    # Also add nodal break narrative
     for nb in two_pass_result.get("nodal_breaks", []):
         nb_narrative = generate_plain_language_narrative(
             record_id=nb["record_id"],
@@ -896,7 +823,7 @@ with tab_exceptions:
             "order_id": st.column_config.TextColumn("Order ID", width="small"),
             "vendor_id": st.column_config.TextColumn("Vendor", width="small"),
             "category": st.column_config.TextColumn("Category", width="small"),
-            "exception_type": st.column_config.TextColumn("Classification Bucket", width="medium"),
+            "exception_type": st.column_config.TextColumn("Classification", width="medium"),
             "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
             "confidence_score": st.column_config.ProgressColumn("Confidence", min_value=0.0, max_value=1.0, format="%.3f"),
             "status": st.column_config.TextColumn("Status", width="small"),
@@ -911,19 +838,18 @@ with tab_exceptions:
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 4: THE "SEEDED EDGE CASES" SHOWCASE PANEL (BEST TRUST BUILDER)
+# TAB 4: THE "SEEDED EDGE CASES" SHOWCASE PANEL
 # ════════════════════════════════════════════════════════════════
 with tab_seeded:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🎯 Seeded Edge Cases — Adversarial Verification Proof</span>
-            <span class="trust-indicator trust-high">4 of 4 Detected (100% Precision)</span>
+            <span style="color:#34d399; font-weight:700; font-size:0.78rem;">4 of 4 Detected (100% Precision)</span>
         </div>
         <p style="font-size:0.82rem; color:#94a3b8; margin-top:-6px;">
             To prove SplitGuard AI does not silently smooth over edge cases or hallucinate clean matches, we deliberately seeded <strong>4 tricky real-world failure vectors</strong> into the synthetic dataset. Here is exactly what was tested and how the engine caught it:
         </p>
-    """, unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
 
     manifest_seeds = [
         {
@@ -969,8 +895,7 @@ with tab_seeded:
     ]
 
     for seed in manifest_seeds:
-        st.markdown(f"""
-        <div class="seed-card">
+        st.markdown(f"""<div class="seed-card">
             <div class="seed-header">
                 <div>
                     <span class="seed-id">{seed['id']}</span> &nbsp;·&nbsp; <strong style="color:#ffffff;">{seed['name']}</strong>
@@ -988,23 +913,18 @@ with tab_seeded:
                 <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Engine Plain-Language Explanation:</div>
                 <div>{seed['caught_verdict']}</div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
 # TAB 5: ORDER DIAGNOSTIC & RECOVERY (FORENSIC WATERFALL)
 # ════════════════════════════════════════════════════════════════
 with tab_diagnostic:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🔬 Forensic Order Inspector & Remediation Hub</span>
             <span style="font-size:0.75rem; color:#94a3b8;">Line-by-Line Comparative Audit</span>
-        </div>
-    """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     all_order_ids = sorted(matcher_df["order_id"].tolist())
 
@@ -1040,8 +960,7 @@ with tab_diagnostic:
             exc_t = exc_info["exception_type"]
             chip_class = "chip-math" if exc_t == "settlement-math" else ("chip-timing" if exc_t == "tax-timing" else "chip-compliance")
             delta_val = order_detail['payout_delta']
-            st.markdown(f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid var(--border-subtle); margin-top:24px;">
+            st.markdown(f"""<div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid rgba(148,163,184,0.14); margin-top:24px;">
                 <div>
                     <span class="badge-chip {chip_class}">{exc_t}</span>
                     <span class="badge-chip chip-escalated" style="margin-left:6px;">Status: {exc_info['status'].upper()}</span>
@@ -1049,27 +968,22 @@ with tab_diagnostic:
                 <div style="font-size:0.92rem; font-weight:800; color:{'#fb7185' if delta_val != 0 else '#34d399'};">
                     Variance: ₹{delta_val:,.2f}
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         else:
-            st.markdown("""
-            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
+            st.markdown("""<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
                 <span class="badge-chip chip-cleared">✓ CLEAN RECONCILIATION</span>
                 <span style="font-size:0.92rem; font-weight:800; color:#34d399;">Variance: ₹0.00</span>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
     # Level 3 Prose Box in Diagnostic View
-    st.markdown(f"""
-    <div class="explanation-narrative-box" style="margin-bottom: 16px;">
+    st.markdown(f"""<div class="explanation-narrative-box">
         <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
             Auditor Case Narrative — {target_order}
         </div>
         {order_narrative['full_narrative']}
-    </div>
-    """, unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
 
     # 2 Column Forensic Grid
     diag_c1, diag_c2 = st.columns([13, 10])
@@ -1082,8 +996,7 @@ with tab_diagnostic:
         tds_delta = order_detail["tds_delta"]
         payout_delta = order_detail["payout_delta"]
 
-        st.markdown(f"""
-        <div class="wf-table-container">
+        st.markdown(f"""<div class="wf-table-container">
             <table class="wf-table">
                 <thead>
                     <tr>
@@ -1138,27 +1051,22 @@ with tab_diagnostic:
                     </tr>
                 </tbody>
             </table>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     with diag_c2:
-        st.markdown("##### 🤖 Remediation & Operations Action Hub")
+        st.markdown("##### 🤖 Operations Remediation Actions")
         
         if has_exception:
-            st.markdown("###### ⚡ Operations Remediation Actions:")
-            
             if exc_info["exception_type"] == "settlement-math":
                 if st.button("📝 Generate Official Debit Note to Aggregator", key="btn_debit_note", type="primary", use_container_width=True):
                     dn_res = generate_debit_note(conn, target_order, "Payment Aggregator", "Next Settlement Cycle (T+1)")
-                    st.markdown(f"""
-                    <div class="voucher-card" style="background:#091224; border:1px solid rgba(14,165,233,0.35); border-radius:10px; padding:14px; margin-top:8px;">
+                    st.markdown(f"""<div class="voucher-card" style="background:#091224; border:1px solid rgba(14,165,233,0.35); border-radius:10px; padding:14px; margin-top:8px;">
                         <div style="color:#38bdf8; font-weight:800; border-bottom:1px solid rgba(148,163,184,0.15); padding-bottom:6px; margin-bottom:8px;">
                             OFFICIAL DEBIT NOTE: {dn_res['note_id']}
                         </div>
                         <strong>Order:</strong> {target_order} &nbsp;|&nbsp; <strong>Recovery Amount:</strong> <span style="color:#fb7185; font-weight:800;">₹{dn_res['amount_inr']:,.2f}</span><br>
                         <strong>Status:</strong> <span style="color:#34d399;">{dn_res['status']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    </div>""", unsafe_allow_html=True)
             elif exc_info["exception_type"] == "tax-timing":
                 if st.button("⏳ Queue for GSTR-8 Auto-Release Sync", key="btn_gstr8_sync", type="primary", use_container_width=True):
                     schedule_gstr8_sync(conn, target_order, order_detail["vendor_id"], "2026-08-20")
@@ -1185,13 +1093,11 @@ with tab_diagnostic:
 # TAB 6: VENDOR 360° & POLICY SIMULATOR
 # ════════════════════════════════════════════════════════════════
 with tab_simulator:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🧮 Vendor 360° Profile & What-If Policy Simulator</span>
             <span style="font-size:0.75rem; color:#94a3b8;">Portfolio Impact Modeling</span>
-        </div>
-    """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     sim_c1, sim_c2 = st.columns([1, 1])
 
@@ -1210,26 +1116,20 @@ with tab_simulator:
 
         vk1, vk2, vk3 = st.columns(3)
         with vk1:
-            st.markdown(f"""
-            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+            st.markdown(f"""<div style="background:#091224; padding:12px; border-radius:10px; border:1px solid rgba(148,163,184,0.14);">
                 <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Gross Sales GMV</div>
                 <div style="font-size:1.1rem; font-weight:800; color:#38bdf8;">₹{total_v_gross:,.0f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         with vk2:
-            st.markdown(f"""
-            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+            st.markdown(f"""<div style="background:#091224; padding:12px; border-radius:10px; border:1px solid rgba(148,163,184,0.14);">
                 <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Net Payout</div>
                 <div style="font-size:1.1rem; font-weight:800; color:#34d399;">₹{total_v_payout:,.0f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         with vk3:
-            st.markdown(f"""
-            <div style="background:#091224; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);">
+            st.markdown(f"""<div style="background:#091224; padding:12px; border-radius:10px; border:1px solid rgba(148,163,184,0.14);">
                 <div style="font-size:0.68rem; color:#64748b; font-weight:700; text-transform:uppercase;">Comm. Retained</div>
                 <div style="font-size:1.1rem; font-weight:800; color:#a78bfa;">₹{total_v_comm:,.0f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
         st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
         st.markdown("###### 📜 Active Commission Slabs")
@@ -1247,10 +1147,8 @@ with tab_simulator:
     with sim_c2:
         st.markdown("##### 🎛️ Interactive \"What-If\" Policy Simulator")
 
-        st.markdown("""
-        <div style="background:#091224; padding:18px; border-radius:12px; border:1px solid rgba(139,92,246,0.3);">
-            <div style="font-size:0.75rem; font-weight:700; color:#a78bfa; text-transform:uppercase; margin-bottom:8px;">Policy Adjustment Parameters</div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div style="background:#091224; padding:18px; border-radius:12px; border:1px solid rgba(139,92,246,0.3);">
+            <div style="font-size:0.75rem; font-weight:700; color:#a78bfa; text-transform:uppercase; margin-bottom:8px;">Policy Adjustment Parameters</div>""", unsafe_allow_html=True)
 
         sim_comm_adj = st.slider("Commission Adjustment (%)", min_value=-5.0, max_value=5.0, value=0.0, step=0.5,
                                   help="Simulate increasing or decreasing commission slabs across all vendors.")
@@ -1260,8 +1158,7 @@ with tab_simulator:
         sim_res = simulate_policy_shift(conn, commission_adj_pct=sim_comm_adj, tds_rate=sim_tds_rate)
         net_rev_shift = sim_res["platform_revenue_shift"]
 
-        st.markdown(f"""
-            <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(148,163,184,0.15);">
+        st.markdown(f"""<div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(148,163,184,0.15);">
                 <div style="font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Projected Portfolio Impact</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
                     <span>Projected Platform Commission:</span>
@@ -1278,8 +1175,7 @@ with tab_simulator:
                     <span class="mono" style="color:#cbd5e1;">₹{sim_res['projected_tds_withheld']:,.2f}</span>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1288,13 +1184,11 @@ with tab_simulator:
 # TAB 7: REGULATORY AUDIT TRAIL
 # ════════════════════════════════════════════════════════════════
 with tab_audit:
-    st.markdown("""
-    <div class="section-card">
+    st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>📜 Immutable Regulatory Compliance Audit Trail</span>
             <span style="font-size:0.75rem; color:#94a3b8;">RBI & Statutory Trace</span>
-        </div>
-    """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
     ac1, ac2 = st.columns([1, 4])
     with ac1:
@@ -1347,8 +1241,7 @@ with tab_audit:
 
 
 # ───────────────── 6. WHAT THIS SYSTEM DOES NOT DO (HONEST SCOPE) ─────────────────
-st.markdown("""
-<div class="scope-box">
+st.markdown("""<div class="scope-box">
     <div class="scope-title">
         <span>🛡️ What SplitGuard AI Explicitly Does NOT Do (Deliberate Scope Boundaries)</span>
     </div>
@@ -1364,17 +1257,14 @@ st.markdown("""
     <div class="scope-item">
         ❌ <strong>Does NOT initiate unapproved bank debit sweeps:</strong> Generates formal, auditable Debit Note vouchers and queues GSTR-8 releases, but requires treasury controller authorization before moving capital.
     </div>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
 
 # ───────────────── GLOBAL FOOTER ─────────────────
-st.markdown("""
-<div class="app-footer">
+st.markdown("""<div class="app-footer">
     <strong>SplitGuard AI</strong> — Autonomous Split-Settlement Reconciliation & Escrow Integrity Engine<br>
     Built for <a href="https://razorpay.com" target="_blank">Razorpay AI Buildathon 2026</a> · Compliant with RBI Nodal Directions & Section 52/194-O Statutory Withholdings<br>
     <a href="https://github.com/ParthKhandelwal537/split-settlement-leakage-detector" target="_blank">View GitHub Repository</a>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
 conn.close()
