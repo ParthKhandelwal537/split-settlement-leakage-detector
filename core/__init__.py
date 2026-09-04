@@ -1,0 +1,1 @@
+# SplitGuard AI Core Package

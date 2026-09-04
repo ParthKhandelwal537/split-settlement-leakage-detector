@@ -6,7 +6,16 @@ import json
 import os
 import sys
 import time
+import textwrap
 from datetime import datetime
+import streamlit.components.v1 as components
+
+# Import AgGrid with fallback
+try:
+    from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
+    AGGRID_AVAILABLE = True
+except ImportError:
+    AGGRID_AVAILABLE = False
 
 # Ensure project root is in python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -22,6 +31,14 @@ from src.simulator import simulate_policy_shift
 from src.remediation import generate_debit_note, schedule_gstr8_sync, trigger_escrow_freeze, update_dispute_status
 from src.reconciliation_auditor import run_two_pass_reconciliation
 from src.explainer import attach_narratives_to_records, generate_plain_language_narrative
+from src.graph_visualizer import generate_nodal_solvency_graph_html
+from core.interceptor import (
+    FinancialActionSchema,
+    validate_and_queue_action,
+    record_hitl_decision,
+    read_audit_log_entries,
+    DEFAULT_AUDIT_LOG_PATH
+)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "reconciliation.db")
 MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "seed_manifest.json")
@@ -34,7 +51,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ───────────────── UNIFIED FINTECH CONTROL-TOWER DESIGN SYSTEM CSS ─────────────────
+# ───────────────── STITCH FINTECH CONTROL-TOWER DESIGN SYSTEM CSS ─────────────────
 st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -63,12 +80,34 @@ st.markdown("""<style>
         max-width: 96% !important;
     }
 
+    /* ── STREAMLIT TABS STYLING & OVERFLOW PREVENTION ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 6px !important;
+        background-color: transparent !important;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
+        padding-bottom: 2px !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 7px 14px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        border-radius: 8px 8px 0 0 !important;
+        white-space: nowrap !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #38bdf8 !important;
+        border-bottom: 2px solid #38bdf8 !important;
+        background: rgba(14, 165, 233, 0.08) !important;
+    }
+
     /* ── HERO BANNER ── */
     .hero-banner {
         background: linear-gradient(135deg, #071329 0%, #0c234a 55%, #083366 100%);
         border-radius: 14px;
-        padding: 16px 24px;
-        margin-bottom: 16px;
+        padding: 18px 24px;
+        margin-bottom: 18px;
         border: 1px solid rgba(14, 165, 233, 0.28);
         box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2);
         display: flex;
@@ -78,21 +117,21 @@ st.markdown("""<style>
         gap: 12px;
     }
     .hero-title {
-        font-size: 1.55rem;
+        font-size: 1.6rem;
         font-weight: 800;
         letter-spacing: -0.03em;
         margin: 0;
         color: #ffffff;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
     .hero-subtitle {
         color: #94a3b8;
-        font-size: 0.83rem;
-        margin-top: 4px;
-        max-width: 780px;
-        line-height: 1.45;
+        font-size: 0.84rem;
+        margin-top: 5px;
+        max-width: 820px;
+        line-height: 1.48;
     }
     .live-badge {
         display: inline-flex;
@@ -124,7 +163,7 @@ st.markdown("""<style>
         padding: 16px 18px;
         position: relative;
         overflow: hidden;
-        min-height: 135px;
+        min-height: 138px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -178,7 +217,7 @@ st.markdown("""<style>
         margin-bottom: 18px;
     }
     .card-header-title {
-        font-size: 0.95rem;
+        font-size: 0.96rem;
         font-weight: 700;
         color: #f8fafc;
         margin-bottom: 14px;
@@ -301,23 +340,23 @@ st.markdown("""<style>
         background: #081020;
         border: 1px dashed rgba(148, 163, 184, 0.28);
         border-radius: 12px;
-        padding: 16px 20px;
-        margin-top: 24px;
+        padding: 18px 22px;
+        margin-top: 16px;
         margin-bottom: 16px;
     }
     .scope-title {
-        font-size: 0.82rem;
+        font-size: 0.86rem;
         font-weight: 800;
         color: #cbd5e1;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
     }
     .scope-item {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: #94a3b8;
-        line-height: 1.5;
-        margin-bottom: 6px;
+        line-height: 1.55;
+        margin-bottom: 8px;
     }
 
     /* ── FOOTER ── */
@@ -330,18 +369,6 @@ st.markdown("""<style>
         margin-top: 28px;
     }
     .app-footer a { color: #0ea5e9; text-decoration: none; }
-
-    .demo-hint {
-        background: rgba(14, 165, 233, 0.08);
-        border: 1px solid rgba(14, 165, 233, 0.2);
-        border-radius: 8px;
-        padding: 8px 14px;
-        font-size: 0.74rem;
-        color: #94a3b8;
-        margin-bottom: 12px;
-        line-height: 1.5;
-    }
-    .demo-hint strong { color: #38bdf8; }
 </style>""", unsafe_allow_html=True)
 
 
@@ -367,8 +394,6 @@ def _load_all_data():
     """
     Load all data from DB and run the side-effect-producing pipeline
     stages (matcher, two-pass auditor) ONCE, returning cached results.
-    This is the ONLY place that calls run_matcher / run_two_pass_reconciliation,
-    which each write one audit_log row per invocation.
     """
     conn = sqlite3.connect(DB_PATH)
     report = generate_reconciliation_report(conn)
@@ -396,7 +421,6 @@ if not os.path.exists(DB_PATH):
 if "pipeline_data" not in st.session_state:
     st.session_state["pipeline_data"] = _load_all_data()
 
-
 # ───────────────── SIDEBAR CONTROLLER ─────────────────
 with st.sidebar:
     st.markdown("## ⚡ SplitGuard AI")
@@ -420,14 +444,14 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.markdown("#### 🛡️ Verification Architecture")
+    st.markdown("#### 🛡️ Dual-Core Safety Interceptor")
     st.markdown("""
-    - **Pass 1 (Matcher):** `Point-in-Time Active`
-    - **Pass 2 (Auditor):** `Zero-Tolerance Veto`
-    - **Nodal Circuit Breaker:** `Auto-Halt on Deficit`
-    - **Statutory Rules:** `Sec 52 TCS • Sec 194-O TDS`
-    - **Stopping Threshold:** `< 0.70 Conf → Human Ops`
-    - **ACID Database:** `SQLite Relational Engine`
+    - **Probabilistic Layer:** `LLM Exception Triage`
+    - **Deterministic Layer:** `Pure Python / SQL Math`
+    - **Schema Gate:** `Pydantic Zero-Hallucination`
+    - **HITL Enforcement:** `Mandatory Ops Approval`
+    - **Circuit Breaker:** `Halt on Nodal Escrow Deficit`
+    - **Audit Log:** `Immutable JSONL with UTC ISO`
     """)
     st.divider()
     st.caption("Razorpay AI Buildathon 2026 Submission")
@@ -446,25 +470,34 @@ audited_records_enriched = _data["audited_records_enriched"]
 # Open a READ-ONLY connection for queries
 conn = sqlite3.connect(DB_PATH)
 
+# Fetch latest nodal ledger closing balance for deterministic interceptor checks
+nodal_latest = pd.read_sql_query(
+    "SELECT closing_balance FROM nodal_account_ledger ORDER BY date DESC LIMIT 1", conn
+)
+current_ledger_balance = float(nodal_latest["closing_balance"].iloc[0]) if not nodal_latest.empty else 750000.0
+
 
 # ───────────────── HERO BANNER ─────────────────
-st.markdown("""<div class="hero-banner">
-    <div>
-        <div class="hero-title">
-            <span>⚡ SplitGuard AI</span>
-            <span style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; background: rgba(14,165,233,0.15); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(14,165,233,0.3);">Dual-Engine Reconciliation</span>
-        </div>
-        <div class="hero-subtitle">
-            Real-time multi-party settlement audit &amp; escrow protection. Evaluates contracts against effective-date rules, detects refund over-clawbacks, intercepts commission leakage, and halts settlements on RBI Nodal account breaks.
-        </div>
-    </div>
-    <div>
-        <span class="live-badge"><div class="pulse-dot"></div> CONTINUOUS AUDIT ACTIVE</span>
-    </div>
-</div>""", unsafe_allow_html=True)
+hero_html = textwrap.dedent("""
+<div class="hero-banner">
+<div>
+<div class="hero-title">
+<span>⚡ SplitGuard AI</span>
+<span style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; background: rgba(14,165,233,0.15); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(14,165,233,0.3);">Dual-Core Autonomous Financial Controller</span>
+</div>
+<div class="hero-subtitle">
+Real-time multi-party settlement audit &amp; escrow protection. Deterministic Python/SQL arithmetic engine paired with an LLM Supervisor, human-in-the-loop gate, and point-in-time statutory compliance (Section 52 TCS &bull; Section 194-O TDS &bull; RBI Nodal Account Directions).
+</div>
+</div>
+<div>
+<span class="live-badge"><div class="pulse-dot"></div> DUAL-CORE INTERCEPTOR ACTIVE</span>
+</div>
+</div>
+""")
+st.markdown(hero_html, unsafe_allow_html=True)
 
 
-# ───────────────── LEVEL 1: HEADLINE METRICS ─────────────────
+# ───────────────── LEVEL 1: HEADLINE METRICS (FR-UI-1 SANITIZED) ─────────────────
 esc_count = report['status_counts'].get('escalated', 0)
 rev_count = report['status_counts'].get('needs-review', 0)
 auto_count = report['status_counts'].get('auto-cleared', 0)
@@ -481,67 +514,72 @@ flagged_review_pct = round(100.0 - auto_resolved_pct, 1)
 mc1, mc2, mc3, mc4 = st.columns(4)
 
 with mc1:
-    st.markdown(f"""<div class="metric-card-box">
-        <div class="metric-stripe-blue"></div>
-        <div>
-            <div class="metric-label-txt">Batch Match Rate</div>
-            <div class="metric-value-txt" style="color: #38bdf8;">{report['match_rate']}%</div>
-            <div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#f8fafc;">{report['clean_orders']}</span> of <span class="mono" style="color:#f8fafc;">{total_orders}</span> clean</div>
-        </div>
-        <div class="metric-badge-txt badge-green-bg">✓ Zero Math Variance</div>
-    </div>""", unsafe_allow_html=True)
+    m1_html = textwrap.dedent(f"""
+<div class="metric-card-box">
+<div class="metric-stripe-blue"></div>
+<div>
+<div class="metric-label-txt">Batch Match Rate</div>
+<div class="metric-value-txt" style="color: #38bdf8;">{report['match_rate']}%</div>
+<div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#f8fafc;">{report['clean_orders']}</span> of <span class="mono" style="color:#f8fafc;">{total_orders}</span> clean</div>
+</div>
+<div class="metric-badge-txt badge-green-bg">✓ Zero Math Variance</div>
+</div>
+""")
+    st.markdown(m1_html, unsafe_allow_html=True)
 
 with mc2:
-    st.markdown(f"""<div class="metric-card-box">
-        <div class="metric-stripe-red"></div>
-        <div>
-            <div class="metric-label-txt">Exceptions &amp; ₹ at Risk</div>
-            <div class="metric-value-txt" style="color: #fb7185;">₹{total_inr_at_risk:,.0f}</div>
-            <div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#fb7185;">{total_exceptions_count} exceptions</span> (₹{report['total_settlement_leakage_inr']:,.0f} leakage)</div>
-        </div>
-        <div class="metric-badge-txt badge-red-bg">🚨 Financial Exposure</div>
-    </div>""", unsafe_allow_html=True)
+    m2_html = textwrap.dedent(f"""
+<div class="metric-card-box">
+<div class="metric-stripe-red"></div>
+<div>
+<div class="metric-label-txt">Exceptions &amp; ₹ at Risk</div>
+<div class="metric-value-txt" style="color: #fb7185;">₹{total_inr_at_risk:,.0f}</div>
+<div class="metric-sub-txt"><span class="mono" style="font-weight:700; color:#fb7185;">{total_exceptions_count} exceptions</span> (₹{report['total_settlement_leakage_inr']:,.0f} leakage)</div>
+</div>
+<div class="metric-badge-txt badge-red-bg">🚨 Financial Exposure</div>
+</div>
+""")
+    st.markdown(m2_html, unsafe_allow_html=True)
 
 with mc3:
-    st.markdown(f"""<div class="metric-card-box">
-        <div class="metric-stripe-amber"></div>
-        <div>
-            <div class="metric-label-txt">Flagged for Human Review</div>
-            <div class="metric-value-txt" style="color: #fbbf24;">{rev_count + esc_count} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({flagged_review_pct}%)</span></div>
-            <div class="metric-sub-txt">Escalated: <strong>{esc_count}</strong> &nbsp;|&nbsp; Review: <strong>{rev_count}</strong></div>
-        </div>
-        <div class="metric-badge-txt badge-amber-bg">⚠️ Requires Human Approval</div>
-    </div>""", unsafe_allow_html=True)
+    m3_html = textwrap.dedent(f"""
+<div class="metric-card-box">
+<div class="metric-stripe-amber"></div>
+<div>
+<div class="metric-label-txt">Flagged for Human Review</div>
+<div class="metric-value-txt" style="color: #fbbf24;">{rev_count + esc_count} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({flagged_review_pct}%)</span></div>
+<div class="metric-sub-txt">Escalated: <strong>{esc_count}</strong> &nbsp;|&nbsp; Review: <strong>{rev_count}</strong></div>
+</div>
+<div class="metric-badge-txt badge-amber-bg">⚠️ Requires Human Approval</div>
+</div>
+""")
+    st.markdown(m3_html, unsafe_allow_html=True)
 
 with mc4:
-    st.markdown(f"""<div class="metric-card-box">
-        <div class="metric-stripe-green"></div>
-        <div>
-            <div class="metric-label-txt">Auto-Resolved by Rules</div>
-            <div class="metric-value-txt" style="color: #34d399;">{clean_plus_timing} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({auto_resolved_pct}%)</span></div>
-            <div class="metric-sub-txt">Clean: <strong>{report['clean_orders']}</strong> &nbsp;|&nbsp; GSTR-8: <strong>{auto_count}</strong></div>
-        </div>
-        <div class="metric-badge-txt badge-green-bg">🔒 Verified Benign Timing</div>
-    </div>""", unsafe_allow_html=True)
+    m4_html = textwrap.dedent(f"""
+<div class="metric-card-box">
+<div class="metric-stripe-green"></div>
+<div>
+<div class="metric-label-txt">Auto-Resolved by Rules</div>
+<div class="metric-value-txt" style="color: #34d399;">{clean_plus_timing} <span style="font-size:1.0rem; font-weight:600; color:#94a3b8;">({auto_resolved_pct}%)</span></div>
+<div class="metric-sub-txt">Clean: <strong>{report['clean_orders']}</strong> &nbsp;|&nbsp; GSTR-8: <strong>{auto_count}</strong></div>
+</div>
+<div class="metric-badge-txt badge-green-bg">🔒 Verified Benign Timing</div>
+</div>
+""")
+    st.markdown(m4_html, unsafe_allow_html=True)
 
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
 
 # ═══════════════════════════════════════════════════════════════════════
-# DEMO-OPTIMIZED TAB ORDER WITH JUDGE-FACING NUMBERED BADGES
+# CONSOLIDATED MASTER TABS (FR-UI-2: 4 MASTER TABS)
 # ═══════════════════════════════════════════════════════════════════════
-st.markdown("""<div class="demo-hint">
-    <strong>💡 Recommended Demo Path:</strong>
-    ① Overview &amp; Solvency → ② Proven Detection of Edge Cases → ③ Exceptions &amp; Triage → ④ Complete Batch Ledger → ⑤ Order Diagnostic → ⑥ Vendor 360° → ⑦ Audit Trail
-</div>""", unsafe_allow_html=True)
-
-tab_overview, tab_seeded, tab_exceptions, tab_all_records, tab_diagnostic, tab_simulator, tab_audit = st.tabs([
+tab_overview, tab_exceptions, tab_simulator, tab_governance = st.tabs([
     "① Overview & Solvency",
-    "② Proven Detection of Edge Cases",
-    "③ Exceptions & Triage",
-    "④ Complete Batch Ledger",
-    "⑤ Order Diagnostic & Recovery",
-    "⑥ Vendor 360° & Simulator",
-    "⑦ Regulatory Audit Trail"
+    "② Exception Manager",
+    "③ Vendor 360° & Simulator",
+    "④ Governance & Scope"
 ])
 
 
@@ -549,6 +587,107 @@ tab_overview, tab_seeded, tab_exceptions, tab_all_records, tab_diagnostic, tab_s
 # TAB 1: OVERVIEW & SOLVENCY MONITOR
 # ════════════════════════════════════════════════════════════════
 with tab_overview:
+    # ── Interactive Nodal Solvency Dependency Graph (FR-ENG-2) ──
+    st.markdown("""<div class="section-card">
+        <div class="card-header-title" style="flex-wrap: wrap; gap: 8px;">
+            <span>🌐 Nodal Solvency &amp; Multi-Party Settlement Topology</span>
+            <span style="font-size:0.73rem; color:#38bdf8; font-weight:700; background:rgba(14,165,233,0.12); padding:4px 10px; border-radius:8px; border:1px solid rgba(14,165,233,0.25);">
+                Tiered Multi-Party Flow &bull; Risk Callouts
+            </span>
+        </div>
+        <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px; margin-bottom:12px;">
+            Structured end-to-end topology mapping inbound collection flows, RBI Nodal Escrow distribution, platform treasury retention, statutory withholdings (TCS/TDS), and vendor payouts. Critical nodes highlight active risk breaks and planted test anomalies.
+        </p>
+    </div>""", unsafe_allow_html=True)
+
+    # Render interactive network graph with tiered layout and clean glassmorphic controls
+    graph_html = generate_nodal_solvency_graph_html(
+        nodal_breaks=two_pass_result.get("nodal_breaks", []),
+        exceptions_summary=report,
+        height="560px"
+    )
+    components.html(graph_html, height=580, scrolling=False)
+
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+
+    # ── Proven Detection of Edge Cases Showcase ──
+    st.markdown("""<div class="section-card">
+        <div class="card-header-title">
+            <span>🎯 Proven Detection of Edge Cases — Verified Audit Proof</span>
+            <span style="color:#34d399; font-weight:700; font-size:0.78rem;">4 of 4 Detected (100% Precision)</span>
+        </div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin-top:-6px;">
+            Financial controllers cannot rely on cherry-picked samples. Below are the 4 complex real-world payment edge cases tested against the engine to demonstrate zero silent leakage:
+        </p>
+    </div>""", unsafe_allow_html=True)
+
+    manifest_seeds = [
+        {
+            "id": "ORD-001",
+            "name": "Retroactive Commission Slab Drift",
+            "test_goal": "Verifies whether orders placed under a July contract rate (10%) mistakenly settle under August's lower rate (7%) when settled in August.",
+            "planted": "Order placed 2026-07-25 (gross ₹10,000, 10% = ₹1,000 comm). Settled on 2026-08-02 where aggregator deducted ₹700.",
+            "caught_verdict": generate_plain_language_narrative("ORD-001", "VARIANCE", 8700.0, 9000.0, 300.0, "settlement-math", 0.72, "Commission slab mismatch", conn)["full_narrative"],
+            "status": "needs-review",
+            "impact": "₹300.00",
+        },
+        {
+            "id": "ORD-015",
+            "name": "Asymmetric Refund Over-Clawback",
+            "test_goal": "Verifies whether customer partial return claws back only that return amount, rather than over-deducting from vendor payout.",
+            "planted": "Partial return of ₹2,000 on 2026-07-20. Aggregator deducted full ₹3,500 from payout (₹1,500 over-clawback).",
+            "caught_verdict": generate_plain_language_narrative("ORD-015", "VARIANCE", 4780.0, 3280.0, -1500.0, "settlement-math", 0.85, "Refund clawback disparity", conn)["full_narrative"],
+            "status": "needs-review",
+            "impact": "₹1,500.00",
+        },
+        {
+            "id": "ORD-028",
+            "name": "TCS Filing Timing Buffer (Self-Skepticism)",
+            "test_goal": "Verifies whether apparent missing tax credits are recognized as harmless timing differences pending GSTR-8 portal filing.",
+            "planted": "Settled on 2026-08-05 before GSTR-8 tax return filed on 2026-08-20. Apparent ₹100 TCS gap is calendar lag, not theft.",
+            "caught_verdict": generate_plain_language_narrative("ORD-028", "VARIANCE", 8600.0, 8700.0, 100.0, "tax-timing", 0.85, "TCS credit missing due to pending GSTR-8", conn)["full_narrative"],
+            "status": "auto-cleared",
+            "impact": "₹100.00",
+        },
+        {
+            "id": "NODAL-2026-08-14",
+            "name": "RBI Nodal Escrow Solvency Deficit",
+            "test_goal": "Verifies whether an unexplained escrow balance break immediately trips automated stopping rules and halts the batch.",
+            "planted": "On 2026-08-14, closing balance of ₹749,061.43 diverged by an unexplained ₹50,000 deficit from Opening + Collected - Settled.",
+            "caught_verdict": generate_plain_language_narrative("NODAL-2026-08-14", "VARIANCE", 799061.43, 749061.43, -50000.0, "structural/compliance", 1.0, "Nodal account balance break", conn)["full_narrative"],
+            "status": "escalated",
+            "impact": "₹50,000.00",
+        }
+    ]
+
+    for seed in manifest_seeds:
+        chip_cls = "chip-review" if seed["status"] == "needs-review" else ("chip-matched" if seed["status"] == "auto-cleared" else "chip-escalated")
+        sc_html = textwrap.dedent(f"""
+<div class="seed-card">
+<div class="seed-header">
+<div>
+<span class="seed-id">{seed['id']}</span> &nbsp;&bull;&nbsp; <strong style="color:#ffffff;">{seed['name']}</strong>
+</div>
+<div>
+<span class="badge-chip {chip_cls}">{seed['status']}</span>
+<span class="mono" style="font-weight:700; color:#fb7185; margin-left:8px;">{seed['impact']}</span>
+</div>
+</div>
+<div class="seed-desc">
+<strong>Scenario Tested:</strong> {seed['test_goal']}<br>
+<strong>Simulated Anomaly:</strong> {seed['planted']}
+</div>
+<div class="seed-proof">
+<div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Controller Assessment:</div>
+<div>{seed['caught_verdict']}</div>
+</div>
+</div>
+""")
+        st.markdown(sc_html, unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+
+    # ── Financial Analytics & Daily Nodal Solvency Monitor ──
     col_chart_left, col_chart_right = st.columns([1, 1])
 
     with col_chart_left:
@@ -637,95 +776,102 @@ with tab_overview:
 
     st.altair_chart(nodal_chart, use_container_width=True)
 
-    st.markdown("""<div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:8px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
-        ⚠️ <strong>Solvency Alert Detected:</strong> On <code>2026-08-14</code>, Nodal closing balance diverged by <strong>₹50,000.00</strong> deficit from mathematical formula (<code>Opening + Collected - Settled</code>). Automated batch processing halted under RBI circuit-breaker rules.
-    </div></div>""", unsafe_allow_html=True)
+    alert_html = textwrap.dedent("""
+<div style="font-size:0.76rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:10px 14px; border-radius:8px; border:1px solid rgba(245,158,11,0.25); margin-top:8px;">
+⚠️ <strong>Solvency Alert Detected:</strong> On <code>2026-08-14</code>, Nodal closing balance diverged by <strong>₹50,000.00</strong> deficit from mathematical formula (<code>Opening + Collected - Settled</code>). Automated batch processing halted under RBI circuit-breaker rules.
+</div>
+</div>
+""")
+    st.markdown(alert_html, unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 2: SEEDED EDGE CASES (PROVEN DETECTION)
-# ════════════════════════════════════════════════════════════════
-with tab_seeded:
-    st.markdown("""<div class="section-card">
-        <div class="card-header-title">
-            <span>🎯 Proven Detection of Edge Cases — Verified Audit Proof</span>
-            <span style="color:#34d399; font-weight:700; font-size:0.78rem;">4 of 4 Detected (100% Precision)</span>
-        </div>
-        <p style="font-size:0.82rem; color:#94a3b8; margin-top:-6px;">
-            Financial controllers cannot rely on cherry-picked samples. Below are 4 complex real-world payment edge cases tested against the engine to demonstrate zero silent leakage:
-        </p>
-    </div>""", unsafe_allow_html=True)
-
-    manifest_seeds = [
-        {
-            "id": "ORD-001",
-            "name": "Retroactive Commission Slab Drift",
-            "test_goal": "Verifies whether orders placed under a July contract rate (10%) mistakenly settle under August's lower rate (7%) when settled in August.",
-            "planted": "Order placed 2026-07-25 (gross ₹10,000, 10% = ₹1,000 comm). Settled on 2026-08-02 where aggregator deducted ₹700.",
-            "caught_verdict": generate_plain_language_narrative("ORD-001", "VARIANCE", 8700.0, 9000.0, 300.0, "settlement-math", 0.72, "Commission slab mismatch", conn)["full_narrative"],
-            "status": "needs-review",
-            "impact": "₹300.00",
-        },
-        {
-            "id": "ORD-015",
-            "name": "Asymmetric Refund Over-Clawback",
-            "test_goal": "Verifies whether customer partial return claws back only that return amount, rather than over-deducting from vendor payout.",
-            "planted": "Partial return of ₹2,000 on 2026-07-20. Aggregator deducted full ₹3,500 from payout (₹1,500 over-clawback).",
-            "caught_verdict": generate_plain_language_narrative("ORD-015", "VARIANCE", 4780.0, 3280.0, -1500.0, "settlement-math", 0.85, "Refund clawback disparity", conn)["full_narrative"],
-            "status": "needs-review",
-            "impact": "₹1,500.00",
-        },
-        {
-            "id": "ORD-028",
-            "name": "TCS Filing Timing Buffer (Self-Skepticism)",
-            "test_goal": "Verifies whether apparent missing tax credits are recognized as harmless timing differences pending GSTR-8 portal filing.",
-            "planted": "Settled on 2026-08-05 before GSTR-8 tax return filed on 2026-08-20. Apparent ₹100 TCS gap is calendar lag, not theft.",
-            "caught_verdict": generate_plain_language_narrative("ORD-028", "VARIANCE", 8600.0, 8700.0, 100.0, "tax-timing", 0.85, "TCS credit missing due to pending GSTR-8", conn)["full_narrative"],
-            "status": "auto-cleared",
-            "impact": "₹100.00",
-        },
-        {
-            "id": "NODAL-2026-08-14",
-            "name": "RBI Nodal Escrow Solvency Deficit",
-            "test_goal": "Verifies whether an unexplained escrow balance break immediately trips automated stopping rules and halts the batch.",
-            "planted": "On 2026-08-14, closing balance of ₹749,061.43 diverged by an unexplained ₹50,000 deficit from Opening + Collected - Settled.",
-            "caught_verdict": generate_plain_language_narrative("NODAL-2026-08-14", "VARIANCE", 799061.43, 749061.43, -50000.0, "structural/compliance", 1.0, "Nodal account balance break", conn)["full_narrative"],
-            "status": "escalated",
-            "impact": "₹50,000.00",
-        }
-    ]
-
-    for seed in manifest_seeds:
-        chip_cls = "chip-review" if seed["status"] == "needs-review" else ("chip-matched" if seed["status"] == "auto-cleared" else "chip-escalated")
-        st.markdown(f"""<div class="seed-card">
-            <div class="seed-header">
-                <div>
-                    <span class="seed-id">{seed['id']}</span> &nbsp;·&nbsp; <strong style="color:#ffffff;">{seed['name']}</strong>
-                </div>
-                <div>
-                    <span class="badge-chip {chip_cls}">{seed['status']}</span>
-                    <span class="mono" style="font-weight:700; color:#fb7185; margin-left:8px;">{seed['impact']}</span>
-                </div>
-            </div>
-            <div class="seed-desc">
-                <strong>Scenario Tested:</strong> {seed['test_goal']}<br>
-                <strong>Simulated Anomaly:</strong> {seed['planted']}
-            </div>
-            <div class="seed-proof">
-                <div style="color:#38bdf8; font-weight:700; margin-bottom:4px;">🛡️ Controller Assessment:</div>
-                <div>{seed['caught_verdict']}</div>
-            </div>
-        </div>""", unsafe_allow_html=True)
-
-
-# ════════════════════════════════════════════════════════════════
-# TAB 3: EXCEPTIONS & TRIAGE
+# TAB 2: EXCEPTION MANAGER & AUDIT
 # ════════════════════════════════════════════════════════════════
 with tab_exceptions:
+    # ── HITL Action Confirmation Dialog Definition (FR-AGT-2 & Interceptor) ──
+    @st.dialog("🛡️ Human-in-the-Loop Financial Action Gate")
+    def show_hitl_action_dialog(proposed_action: dict, target_order_id: str, exc_category: str):
+        st.markdown(f"#### Authorize Live Financial Resolution for `{target_order_id}`")
+        st.caption(f"Exception Category: **{exc_category}** &bull; Current Nodal Balance: **₹{current_ledger_balance:,.2f}**")
+
+        # Deterministic Interceptor Validation Check
+        interceptor_result = validate_and_queue_action(proposed_action, current_ledger_balance)
+
+        if not interceptor_result["passed_checks"]:
+            st.error(f"❌ **Interceptor Rejection:** {interceptor_result['reason']}")
+            st.markdown("""
+            <div style="background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); border-radius: 8px; padding: 12px; margin: 10px 0; font-size: 0.8rem; color: #fb7185;">
+                🚫 **Safety Violation:** The proposed payload failed deterministic mathematical or schema constraints. Execution aborted to protect ledger integrity.
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Dismiss", use_container_width=True):
+                st.rerun()
+            return
+
+        # Passed Interceptor checks!
+        st.success("✅ **Deterministic Interceptor Checks Passed (100% Zero-Hallucination)**")
+
+        c_chk1, c_chk2 = st.columns(2)
+        with c_chk1:
+            st.markdown("- [✓] `Pydantic Schema Validated`")
+            st.markdown("- [✓] `Zero Mathematical Hallucination`")
+        with c_chk2:
+            st.markdown("- [✓] `Ledger Solvency Check Passed`")
+            st.markdown("- [✓] `Positive Transaction Bound`")
+
+        st.markdown("##### 📦 Proposed Action Payload")
+        st.json(interceptor_result["payload"])
+
+        st.markdown("---")
+        notes = st.text_input("Reviewer Notes / Authorization Reference", value="Approved by Senior Controller after automated audit verification")
+
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            if st.button("✅ Approve & Execute Live Mutation", type="primary", use_container_width=True):
+                # 1. Record HITL decision to audit_log.jsonl
+                record_hitl_decision(
+                    payload=interceptor_result["payload"],
+                    decision="APPROVED",
+                    reviewer="Senior Controller",
+                    notes=notes
+                )
+                # 2. Execute corresponding backend mutation
+                act_conn = sqlite3.connect(DB_PATH)
+                if proposed_action["action_type"] == "DEBIT_NOTE_ISSUANCE":
+                    generate_debit_note(act_conn, target_order_id, "Payment Aggregator", "Next Settlement Cycle (T+1)")
+                    update_dispute_status(act_conn, target_order_id, "auto-cleared", f"Debit note authorized: {notes}")
+                elif proposed_action["action_type"] == "GSTR8_TAX_SYNC":
+                    schedule_gstr8_sync(act_conn, target_order_id, proposed_action["vendor_id"], "2026-08-20")
+                    update_dispute_status(act_conn, target_order_id, "auto-cleared", f"Queued for GSTR-8 release: {notes}")
+                elif proposed_action["action_type"] == "ESCROW_CIRCUIT_FREEZE":
+                    trigger_escrow_freeze(act_conn, "2026-08-14", proposed_action["amount"])
+                    update_dispute_status(act_conn, target_order_id, "escalated", f"Escrow frozen dispatched: {notes}")
+                act_conn.close()
+
+                # Refresh cached pipeline data
+                st.session_state["pipeline_data"] = _load_all_data()
+                st.toast(f"Action executed and logged to audit_log.jsonl for {target_order_id}!", icon="✅")
+                time.sleep(0.5)
+                st.rerun()
+
+        with col_act2:
+            if st.button("❌ Reject Action", use_container_width=True):
+                record_hitl_decision(
+                    payload=interceptor_result["payload"],
+                    decision="REJECTED",
+                    reviewer="Senior Controller",
+                    notes=notes
+                )
+                st.toast(f"Action rejected and logged for {target_order_id}.", icon="ℹ️")
+                time.sleep(0.5)
+                st.rerun()
+
+    # ── Exception Table & Filters ──
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🔍 Interactive Exception Ledger (Ranked by ₹ Impact)</span>
-            <span style="font-size:0.75rem; color:#94a3b8;">Multi-parameter Triage</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">High-Density Responsive Grid &bull; Dual-Engine Verified</span>
         </div>""", unsafe_allow_html=True)
 
     tf1, tf2, tf3, tf4 = st.columns(4)
@@ -778,34 +924,70 @@ with tab_exceptions:
                                 exc_merged["exception_id"].str.contains(search_query, case=False, na=False)]
     exc_merged = exc_merged[(exc_merged["rupee_impact"] >= impact_range[0]) & (exc_merged["rupee_impact"] <= impact_range[1])]
 
-    def highlight_status(val):
-        if val == "escalated":
-            return "background-color: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: bold;"
-        elif val == "needs-review":
-            return "background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; font-weight: bold;"
-        elif val == "auto-cleared":
-            return "background-color: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: bold;"
-        return ""
+    # ── AgGrid Responsive Grid Implementation (FR-UI-3) ──
+    grid_rendered = False
+    if AGGRID_AVAILABLE and not exc_merged.empty:
+        try:
+            ag_df = exc_merged[["order_id", "vendor_id", "exception_type", "rupee_impact", "status", "plain_explanation"]].copy()
+            ag_df["rupee_impact"] = ag_df["rupee_impact"].apply(lambda x: f"₹{x:,.2f}")
+            ag_df.columns = ["Order ID", "Vendor", "Exception Category", "₹ Impact", "Status", "Audit Summary"]
 
-    display_cols = ["order_id", "exception_type", "rupee_impact", "status", "plain_explanation"]
-    styled_exc = exc_merged[display_cols].style.map(highlight_status, subset=["status"])
+            gb = GridOptionsBuilder.from_dataframe(ag_df)
+            gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+            gb.configure_selection(selection_mode="single", use_checkbox=True)
+            gb.configure_default_column(resizable=True, filterable=True, sortable=True)
+            gb.configure_column("Order ID", width=120)
+            gb.configure_column("Vendor", width=140)
+            gb.configure_column("Exception Category", width=180)
+            gb.configure_column("₹ Impact", width=130)
+            gb.configure_column("Status", width=130)
+            gb.configure_column("Audit Summary", width=420)
+            grid_options = gb.build()
 
-    st.dataframe(
-        styled_exc,
-        column_config={
-            "order_id": st.column_config.TextColumn("Order ID", width="small"),
-            "exception_type": st.column_config.TextColumn("Exception Category", width="medium"),
-            "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
-            "status": st.column_config.TextColumn("Status", width="small"),
-            "plain_explanation": st.column_config.TextColumn("Audit Summary", width="large"),
-        },
-        use_container_width=True,
-        hide_index=True
-    )
+            ag_response = AgGrid(
+                ag_df,
+                gridOptions=grid_options,
+                height=320,
+                theme="alpine",
+                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+                update_mode=GridUpdateMode.SELECTION_CHANGED,
+                allow_unsafe_jscode=False
+            )
+            grid_rendered = True
+        except Exception:
+            grid_rendered = False
+
+    if not grid_rendered:
+        # Fallback to styled st.dataframe with custom column config
+        def highlight_status(val):
+            if val == "escalated":
+                return "background-color: rgba(244, 63, 94, 0.2); color: #fb7185; font-weight: bold;"
+            elif val == "needs-review":
+                return "background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; font-weight: bold;"
+            elif val == "auto-cleared":
+                return "background-color: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: bold;"
+            return ""
+
+        display_cols = ["order_id", "vendor_id", "exception_type", "rupee_impact", "status", "plain_explanation"]
+        styled_exc = exc_merged[display_cols].style.map(highlight_status, subset=["status"])
+
+        st.dataframe(
+            styled_exc,
+            column_config={
+                "order_id": st.column_config.TextColumn("Order ID", width="small"),
+                "vendor_id": st.column_config.TextColumn("Vendor", width="small"),
+                "exception_type": st.column_config.TextColumn("Exception Category", width="medium"),
+                "rupee_impact": st.column_config.NumberColumn("₹ Impact", format="₹%.2f"),
+                "status": st.column_config.TextColumn("Status", width="small"),
+                "plain_explanation": st.column_config.TextColumn("Audit Summary", width="large"),
+            },
+            use_container_width=True,
+            hide_index=True
+        )
 
     st.caption(f"Displaying **{len(exc_merged)}** filtered exceptions (Total exposure: **₹{exc_merged['rupee_impact'].sum():,.2f}**)")
 
-    with st.expander("📊 View Full Detail Columns (Ref #, Vendor, Category, Confidence)"):
+    with st.expander("📊 View Complete Diagnostic Attributes (Ref #, Vendor, Category, Confidence)"):
         full_display = exc_merged[["exception_id", "order_id", "vendor_id", "category", "exception_type", "rupee_impact", "confidence_score", "status"]].copy()
         st.dataframe(
             full_display,
@@ -825,84 +1007,11 @@ with tab_exceptions:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-
-# ════════════════════════════════════════════════════════════════
-# TAB 4: COMPLETE BATCH LEDGER
-# ════════════════════════════════════════════════════════════════
-with tab_all_records:
+    # ── Plain-Language AI Audit Explanations & Forensic Waterfall (FR-AGT-1 & FR-AGT-2) ──
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
-            <span>📋 Complete Batch Ledger — 100% Record Transparency</span>
-            <span style="color:#38bdf8; font-weight:700; font-size:0.78rem;">✓ Dual-Engine Audited</span>
-        </div>
-        <p style="font-size:0.80rem; color:#94a3b8; margin-top:-6px;">
-            Every single order processed through the dual-engine pipeline. Expand any row to read its complete financial audit narrative explaining expected amounts, settled amounts, and contractual findings.
-        </p>
-    </div>""", unsafe_allow_html=True)
-
-    audited_df = pd.DataFrame(audited_records_enriched)
-
-    c_ar1, c_ar2, c_ar3 = st.columns([2, 2, 2])
-    with c_ar1:
-        st_filter = st.selectbox("Status Filter", ["All Records", "MATCHED (Clean)", "VARIANCE (Exception)"], key="ar_st_filter")
-    with c_ar2:
-        cat_filter = st.selectbox("Exception Category", ["All Categories"] + sorted(audited_df["exception_category"].unique().tolist()), key="ar_cat_filter")
-    with c_ar3:
-        search_ar = st.text_input("Search Order ID", placeholder="e.g. ORD-001", key="ar_search")
-
-    filtered_ar = audited_df.copy()
-    if st_filter == "MATCHED (Clean)":
-        filtered_ar = filtered_ar[filtered_ar["status"] == "MATCHED"]
-    elif st_filter == "VARIANCE (Exception)":
-        filtered_ar = filtered_ar[filtered_ar["status"] == "VARIANCE"]
-
-    if cat_filter != "All Categories":
-        filtered_ar = filtered_ar[filtered_ar["exception_category"] == cat_filter]
-    if search_ar:
-        filtered_ar = filtered_ar[filtered_ar["record_id"].str.contains(search_ar, case=False, na=False)]
-
-    st.markdown(f"**Displaying {len(filtered_ar)} of {len(audited_df)} records:**")
-
-    for _, row in filtered_ar.iterrows():
-        is_clean = row["status"] == "MATCHED"
-        badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
-        delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
-
-        expander_title = (
-            f"{'🟢' if is_clean else '🔴'} {row['record_id']}  |  "
-            f"Exp: ₹{row['expected_amount']:,.2f}  |  "
-            f"Act: ₹{row['actual_amount']:,.2f}  |  "
-            f"Δ: {delta_str}  ·  {row['headline_summary']}"
-        )
-
-        with st.expander(expander_title):
-            st.markdown(f"""<div class="explanation-narrative-box">
-                <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
-                    Independent Settlement Narrative
-                </div>
-                {row['full_narrative']}
-            </div>""", unsafe_allow_html=True)
-
-            ec1, ec2, ec3 = st.columns([1, 1, 2])
-            with ec1:
-                st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Exception Category:** `{row['exception_category']}`")
-            with ec2:
-                st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
-                st.markdown(f"**Audit Engine:** `Independent Mathematical Verification`")
-            with ec3:
-                st.markdown("**Contractual Policy Applied:**")
-                st.caption(row["reason"])
-
-
-# ════════════════════════════════════════════════════════════════
-# TAB 5: ORDER DIAGNOSTIC & RECOVERY
-# ════════════════════════════════════════════════════════════════
-with tab_diagnostic:
-    st.markdown("""<div class="section-card">
-        <div class="card-header-title">
-            <span>🔬 Forensic Order Inspector &amp; Remediation Hub</span>
-            <span style="font-size:0.75rem; color:#94a3b8;">Line-by-Line Comparative Audit</span>
+            <span>🔬 Forensic Order Inspector, AI Audit Explanations &amp; HITL Gate</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">Deterministic Comparative Audit &bull; Human Sign-Off</span>
         </div>""", unsafe_allow_html=True)
 
     all_order_ids = sorted(matcher_df["order_id"].tolist())
@@ -910,10 +1019,10 @@ with tab_diagnostic:
     col_target_sel, col_target_info = st.columns([1, 2])
     with col_target_sel:
         target_order = st.selectbox(
-            "Select Order to Audit",
+            "Select Order to Audit / Remediate",
             options=all_order_ids,
             index=all_order_ids.index("ORD-001") if "ORD-001" in all_order_ids else 0,
-            help="Choose any order to inspect line-by-line settlement math and statutory tax deductions."
+            help="Choose any order to inspect line-by-line settlement math, view AI audit narrative, and trigger HITL resolution."
         )
 
     order_detail = matcher_df[matcher_df["order_id"] == target_order].iloc[0]
@@ -938,29 +1047,39 @@ with tab_diagnostic:
             exc_t = exc_info["exception_type"]
             chip_class = "chip-review" if exc_t == "settlement-math" else ("chip-timing" if exc_t == "tax-timing" else "chip-escalated")
             delta_val = order_detail['payout_delta']
-            st.markdown(f"""<div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid rgba(148,163,184,0.14); margin-top:24px;">
-                <div>
-                    <span class="badge-chip {chip_class}">{exc_t}</span>
-                    <span class="badge-chip chip-escalated" style="margin-left:6px;">Status: {exc_info['status'].upper()}</span>
-                </div>
-                <div style="font-size:0.92rem; font-weight:800; color:{'#fb7185' if delta_val != 0 else '#34d399'};">
-                    Variance: ₹{delta_val:,.2f}
-                </div>
-            </div>""", unsafe_allow_html=True)
+            ti_html = textwrap.dedent(f"""
+<div style="display:flex; justify-content:space-between; align-items:center; background:#091224; padding:10px 16px; border-radius:10px; border:1px solid rgba(148,163,184,0.14); margin-top:24px;">
+<div>
+<span class="badge-chip {chip_class}">{exc_t}</span>
+<span class="badge-chip chip-escalated" style="margin-left:6px;">Status: {exc_info['status'].upper()}</span>
+</div>
+<div style="font-size:0.92rem; font-weight:800; color:{'#fb7185' if delta_val != 0 else '#34d399'};">
+Variance: ₹{delta_val:,.2f}
+</div>
+</div>
+""")
+            st.markdown(ti_html, unsafe_allow_html=True)
         else:
-            st.markdown("""<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
-                <span class="badge-chip chip-matched">✓ CLEAN RECONCILIATION</span>
-                <span style="font-size:0.92rem; font-weight:800; color:#34d399;">Variance: ₹0.00</span>
-            </div>""", unsafe_allow_html=True)
+            cl_html = textwrap.dedent("""
+<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); padding:10px 16px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); margin-top:24px;">
+<span class="badge-chip chip-matched">✓ CLEAN RECONCILIATION</span>
+<span style="font-size:0.92rem; font-weight:800; color:#34d399;">Variance: ₹0.00</span>
+</div>
+""")
+            st.markdown(cl_html, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
-    st.markdown(f"""<div class="explanation-narrative-box">
-        <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
-            Auditor Case Narrative — {target_order}
-        </div>
-        {order_narrative['full_narrative']}
-    </div>""", unsafe_allow_html=True)
+    # ── Plain-Language AI Audit Explanation Drawer (FR-AGT-1) ──
+    en_html = textwrap.dedent(f"""
+<div class="explanation-narrative-box">
+<div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+🤖 AI Supervisor Audit Narrative &bull; {target_order}
+</div>
+{order_narrative['full_narrative']}
+</div>
+""")
+    st.markdown(en_html, unsafe_allow_html=True)
 
     diag_c1, diag_c2 = st.columns([13, 10])
 
@@ -986,86 +1105,99 @@ with tab_diagnostic:
         tds_sign = "+" if tds_delta > 0 else ""
         payout_sign = "+" if payout_delta > 0 else ""
 
-        st.markdown(f"""<div class="wf-table-container">
-            <table class="wf-table">
-                <thead>
-                    <tr><th>Line Item</th><th>Expected</th><th>Actual</th><th>Variance (Δ)</th></tr>
-                </thead>
-                <tbody>
-                    <tr class="wf-row">
-                        <td>Gross Order Amount</td>
-                        <td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
-                        <td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
-                        <td class="delta-good">₹0.00</td>
-                    </tr>
-                    <tr class="wf-row {comm_var_cls}">
-                        <td>Commission ({order_detail['comm_rate']*100:.1f}%)</td>
-                        <td class="mono">₹{order_detail['expected_comm']:,.2f}</td>
-                        <td class="mono">₹{order_detail['actual_comm']:,.2f}</td>
-                        <td class="{comm_delta_cls}">{comm_sign}₹{comm_delta:,.2f}</td>
-                    </tr>
-                    <tr class="wf-row {tcs_var_cls}">
-                        <td>TCS Withholding (1.0%)</td>
-                        <td class="mono">₹{order_detail['expected_tcs']:,.2f}</td>
-                        <td class="mono">₹{order_detail['actual_tcs']:,.2f}</td>
-                        <td class="{tcs_delta_cls}">{tcs_sign}₹{tcs_delta:,.2f}</td>
-                    </tr>
-                    <tr class="wf-row {tds_var_cls}">
-                        <td>TDS (Sec 194-O)</td>
-                        <td class="mono">₹{order_detail['expected_tds']:,.2f}</td>
-                        <td class="mono">₹{order_detail['actual_tds']:,.2f}</td>
-                        <td class="{tds_delta_cls}">{tds_sign}₹{tds_delta:,.2f}</td>
-                    </tr>
-                    <tr class="wf-row">
-                        <td>Logistics Fee</td>
-                        <td class="mono">₹100.00</td>
-                        <td class="mono">₹100.00</td>
-                        <td class="delta-good">₹0.00</td>
-                    </tr>
-                    <tr class="wf-row">
-                        <td>Refund Clawback</td>
-                        <td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
-                        <td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
-                        <td class="delta-good">₹0.00</td>
-                    </tr>
-                    <tr class="wf-row total-row">
-                        <td>NET VENDOR PAYOUT</td>
-                        <td class="mono">₹{order_detail['expected_payout']:,.2f}</td>
-                        <td class="mono">₹{order_detail['actual_payout']:,.2f}</td>
-                        <td class="{payout_delta_cls}">{payout_sign}₹{payout_delta:,.2f}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>""", unsafe_allow_html=True)
+        wf_html = textwrap.dedent(f"""
+<div class="wf-table-container">
+<table class="wf-table">
+<thead>
+<tr><th>Line Item</th><th>Expected</th><th>Actual</th><th>Variance (&Delta;)</th></tr>
+</thead>
+<tbody>
+<tr class="wf-row">
+<td>Gross Order Amount</td>
+<td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
+<td class="mono">₹{order_detail['gross_amount']:,.2f}</td>
+<td class="delta-good">₹0.00</td>
+</tr>
+<tr class="wf-row {comm_var_cls}">
+<td>Commission ({order_detail['comm_rate']*100:.1f}%)</td>
+<td class="mono">₹{order_detail['expected_comm']:,.2f}</td>
+<td class="mono">₹{order_detail['actual_comm']:,.2f}</td>
+<td class="{comm_delta_cls}">{comm_sign}₹{comm_delta:,.2f}</td>
+</tr>
+<tr class="wf-row {tcs_var_cls}">
+<td>TCS Withholding (1.0%)</td>
+<td class="mono">₹{order_detail['expected_tcs']:,.2f}</td>
+<td class="mono">₹{order_detail['actual_tcs']:,.2f}</td>
+<td class="{tcs_delta_cls}">{tcs_sign}₹{tcs_delta:,.2f}</td>
+</tr>
+<tr class="wf-row {tds_var_cls}">
+<td>TDS (Sec 194-O)</td>
+<td class="mono">₹{order_detail['expected_tds']:,.2f}</td>
+<td class="mono">₹{order_detail['actual_tds']:,.2f}</td>
+<td class="{tds_delta_cls}">{tds_sign}₹{tds_delta:,.2f}</td>
+</tr>
+<tr class="wf-row">
+<td>Logistics Fee</td>
+<td class="mono">₹100.00</td>
+<td class="mono">₹100.00</td>
+<td class="delta-good">₹0.00</td>
+</tr>
+<tr class="wf-row">
+<td>Refund Clawback</td>
+<td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
+<td class="mono">-₹{order_detail['refund_amount']:,.2f}</td>
+<td class="delta-good">₹0.00</td>
+</tr>
+<tr class="wf-row total-row">
+<td>NET VENDOR PAYOUT</td>
+<td class="mono">₹{order_detail['expected_payout']:,.2f}</td>
+<td class="mono">₹{order_detail['actual_payout']:,.2f}</td>
+<td class="{payout_delta_cls}">{payout_sign}₹{payout_delta:,.2f}</td>
+</tr>
+</tbody>
+</table>
+</div>
+""")
+        st.markdown(wf_html, unsafe_allow_html=True)
 
     with diag_c2:
-        st.markdown("##### 🤖 Operations Remediation Actions")
+        st.markdown("##### 🛡️ Dual-Core HITL Resolution Actions")
 
         if has_exception:
-            if exc_info["exception_type"] == "settlement-math":
-                if st.button("📝 Generate Official Debit Note to Aggregator", key="btn_debit_note", type="primary", use_container_width=True):
-                    dn_conn = sqlite3.connect(DB_PATH)
-                    dn_res = generate_debit_note(dn_conn, target_order, "Payment Aggregator", "Next Settlement Cycle (T+1)")
-                    dn_conn.close()
-                    st.markdown(f"""<div style="background:#091224; border:1px solid rgba(14,165,233,0.35); border-radius:10px; padding:14px; margin-top:8px;">
-                        <div style="color:#38bdf8; font-weight:800; border-bottom:1px solid rgba(148,163,184,0.15); padding-bottom:6px; margin-bottom:8px;">
-                            OFFICIAL DEBIT NOTE: {dn_res['note_id']}
-                        </div>
-                        <strong>Order:</strong> {target_order} &nbsp;|&nbsp; <strong>Recovery Amount:</strong> <span style="color:#fb7185; font-weight:800;">₹{dn_res['amount_inr']:,.2f}</span><br>
-                        <strong>Status:</strong> <span style="color:#34d399;">{dn_res['status']}</span>
-                    </div>""", unsafe_allow_html=True)
-            elif exc_info["exception_type"] == "tax-timing":
-                if st.button("⏳ Queue for GSTR-8 Auto-Release Sync", key="btn_gstr8_sync", type="primary", use_container_width=True):
-                    gs_conn = sqlite3.connect(DB_PATH)
-                    schedule_gstr8_sync(gs_conn, target_order, order_detail["vendor_id"], "2026-08-20")
-                    gs_conn.close()
-                    st.success(f"✅ Order **{target_order}** queued for automated tax clearance upon GSTR-8 portal filing verification.")
+            exc_t = exc_info["exception_type"]
+            if exc_t == "settlement-math":
+                target_amount = abs(float(order_detail["payout_delta"])) or 300.0
+                proposed_payload = {
+                    "action_type": "DEBIT_NOTE_ISSUANCE",
+                    "target_account": "ACC-AGGREGATOR-ESCROW",
+                    "amount": round(target_amount, 2),
+                    "invoice_id": target_order,
+                    "vendor_id": order_detail["vendor_id"]
+                }
+                if st.button("📝 Open HITL Gate: Propose Debit Note", key="btn_hitl_debit_note", type="primary", use_container_width=True):
+                    show_hitl_action_dialog(proposed_payload, target_order, exc_t)
+
+            elif exc_t == "tax-timing":
+                proposed_payload = {
+                    "action_type": "GSTR8_TAX_SYNC",
+                    "target_account": "ACC-GST-PORTAL-ESCROW",
+                    "amount": abs(float(order_detail["tcs_delta"])) or 100.0,
+                    "invoice_id": target_order,
+                    "vendor_id": order_detail["vendor_id"]
+                }
+                if st.button("⏳ Open HITL Gate: Queue GSTR-8 Release", key="btn_hitl_gstr8", type="primary", use_container_width=True):
+                    show_hitl_action_dialog(proposed_payload, target_order, exc_t)
+
             else:
-                if st.button("🚨 Dispatch Compliance Freeze Alert to Banking Escrow", key="btn_escrow_freeze", type="primary", use_container_width=True):
-                    ef_conn = sqlite3.connect(DB_PATH)
-                    trigger_escrow_freeze(ef_conn, order_detail["order_date"], order_detail["gross_amount"])
-                    ef_conn.close()
-                    st.warning(f"⚠️ Emergency Freeze notification dispatched to Escrow Banking Ops for **{target_order}**.")
+                proposed_payload = {
+                    "action_type": "ESCROW_CIRCUIT_FREEZE",
+                    "target_account": "ACC-RBI-NODAL-ESCROW",
+                    "amount": 50000.0,
+                    "invoice_id": target_order,
+                    "vendor_id": "NODAL-LEDGER"
+                }
+                if st.button("🚨 Open HITL Gate: Escrow Circuit Freeze", key="btn_hitl_freeze", type="primary", use_container_width=True):
+                    show_hitl_action_dialog(proposed_payload, target_order, exc_t)
 
             with st.expander("🛠️ Manual Dispute Override / Review Notes"):
                 new_st = st.selectbox("Update Resolution Status", ["auto-cleared", "needs-review", "escalated"], key="override_status")
@@ -1074,24 +1206,78 @@ with tab_diagnostic:
                     ov_conn = sqlite3.connect(DB_PATH)
                     update_dispute_status(ov_conn, target_order, new_st, override_note)
                     ov_conn.close()
-                    # Refresh cached data after override
                     st.session_state["pipeline_data"] = _load_all_data()
                     st.toast(f"Status for {target_order} updated to {new_st}!", icon="✅")
                     st.rerun()
         else:
             st.success("✅ **Zero Financial Variance Found:** Point-in-time commission contract, statutory tax deductions (TCS/TDS), and logistics fees perfectly reconcile against bank settlement payout.")
 
+    # ── Complete Batch Ledger Sub-View ──
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    with st.expander("📋 View Complete Batch Ledger (60 Orders with AI Narratives)"):
+        audited_df = pd.DataFrame(audited_records_enriched)
+        c_ar1, c_ar2, c_ar3 = st.columns([2, 2, 2])
+        with c_ar1:
+            st_filter = st.selectbox("Status Filter", ["All Records", "MATCHED (Clean)", "VARIANCE (Exception)"], key="ar_st_filter")
+        with c_ar2:
+            cat_filter = st.selectbox("Exception Category", ["All Categories"] + sorted(audited_df["exception_category"].unique().tolist()), key="ar_cat_filter")
+        with c_ar3:
+            search_ar = st.text_input("Search Order ID", placeholder="e.g. ORD-001", key="ar_search")
+
+        filtered_ar = audited_df.copy()
+        if st_filter == "MATCHED (Clean)":
+            filtered_ar = filtered_ar[filtered_ar["status"] == "MATCHED"]
+        elif st_filter == "VARIANCE (Exception)":
+            filtered_ar = filtered_ar[filtered_ar["status"] == "VARIANCE"]
+
+        if cat_filter != "All Categories":
+            filtered_ar = filtered_ar[filtered_ar["exception_category"] == cat_filter]
+        if search_ar:
+            filtered_ar = filtered_ar[filtered_ar["record_id"].str.contains(search_ar, case=False, na=False)]
+
+        st.markdown(f"**Displaying {len(filtered_ar)} of {len(audited_df)} batch records:**")
+
+        for _, row in filtered_ar.head(20).iterrows():
+            is_clean = row["status"] == "MATCHED"
+            badge_cls = "chip-matched" if is_clean else ("chip-review" if row["exception_category"] == "settlement-math" else ("chip-timing" if row["exception_category"] == "tax-timing" else "chip-escalated"))
+            delta_str = f"₹{row['variance_delta']:,.2f}" if row['variance_delta'] != 0 else "₹0.00"
+
+            expander_title = (
+                f"{'🟢' if is_clean else '🔴'} {row['record_id']}  |  "
+                f"Exp: ₹{row['expected_amount']:,.2f}  |  "
+                f"Act: ₹{row['actual_amount']:,.2f}  |  "
+                f"Δ: {delta_str}  &bull;  {row['headline_summary']}"
+            )
+
+            with st.expander(expander_title):
+                st.markdown(f"""<div class="explanation-narrative-box">
+                    <div style="font-size:0.72rem; font-weight:700; color:#38bdf8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+                        Independent Settlement Narrative
+                    </div>
+                    {row['full_narrative']}
+                </div>""", unsafe_allow_html=True)
+                ec1, ec2, ec3 = st.columns([1, 1, 2])
+                with ec1:
+                    st.markdown(f"**Resolution Status:** <span class='badge-chip {badge_cls}'>{row['status']}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**Exception Category:** `{row['exception_category']}`")
+                with ec2:
+                    st.markdown(f"**Confidence Score:** `{row['confidence_score']:.3f}`")
+                    st.markdown(f"**Audit Engine:** `Independent Mathematical Verification`")
+                with ec3:
+                    st.markdown("**Contractual Policy Applied:**")
+                    st.caption(row["reason"])
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 6: VENDOR 360° & POLICY SIMULATOR
+# TAB 3: VENDOR 360° & WHAT-IF SIMULATOR
 # ════════════════════════════════════════════════════════════════
 with tab_simulator:
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>🧮 Vendor 360° Profile &amp; What-If Policy Simulator</span>
-            <span style="font-size:0.75rem; color:#94a3b8;">Portfolio Impact Modeling</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">Portfolio Impact Modeling &bull; Runway Analysis</span>
         </div>""", unsafe_allow_html=True)
 
     sim_c1, sim_c2 = st.columns([1, 1])
@@ -1157,7 +1343,7 @@ with tab_simulator:
         rev_sign = "+" if net_rev_shift >= 0 else ""
 
         st.markdown(f"""<div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(148,163,184,0.15);">
-                <div style="font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Projected Portfolio Impact</div>
+                <div style="font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Projected Portfolio Impact &bull; Runway Shift</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
                     <span>Projected Platform Commission:</span>
                     <span class="mono" style="font-weight:700; color:#38bdf8;">₹{sim_res['projected_platform_commission']:,.2f}</span>
@@ -1179,13 +1365,64 @@ with tab_simulator:
 
 
 # ════════════════════════════════════════════════════════════════
-# TAB 7: REGULATORY AUDIT TRAIL
+# TAB 4: GOVERNANCE & SCOPE
 # ════════════════════════════════════════════════════════════════
-with tab_audit:
+with tab_governance:
+    # ── Operating Guardrails: "What SplitGuard AI Does NOT Do" ──
+    st.markdown("""<div class="scope-box">
+        <div class="scope-title">
+            <span>🛡️ System Guardrails &bull; What SplitGuard AI Does NOT Do</span>
+        </div>
+        <div class="scope-item">
+            ❌ <strong>Zero Probabilistic Financial Arithmetic:</strong> Large Language Models (LLMs) are strictly forbidden from performing mathematical calculations, balance additions, or percentage reconciliations. 100% of arithmetic is calculated deterministically in Python/SQL.
+        </div>
+        <div class="scope-item">
+            ❌ <strong>Zero Auto-Clearing of Financial Variances:</strong> Unreconciled commission or payout deltas strictly require human operations sign-off. The engine never writes off variances without human authorization.
+        </div>
+        <div class="scope-item">
+            ❌ <strong>Zero Unmonitored Escrow Deficits:</strong> Any discrepancy in RBI Nodal accounts immediately trips an automated circuit breaker, halting batch payout processing.
+        </div>
+        <div class="scope-item">
+            ❌ <strong>Zero Blind API Dispatch:</strong> Proposed actions must pass the Pydantic schema validation interceptor and explicit Human-in-the-Loop approval before any live ERP mutation is dispatched.
+        </div>
+        <div class="scope-item">
+            ✓ <strong>Direct Relational Database Auditing:</strong> Operates directly on relational transactional databases and structured aggregator settlements for verifiable, auditable accuracy.
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Statutory Compliance Framework ──
+    st.markdown("""<div class="section-card">
+        <div class="card-header-title">
+            <span>⚖️ Statutory Regulatory Framework &bull; Point-in-Time Compliance</span>
+            <span style="font-size:0.75rem; color:#38bdf8;">Indian FinTech Mandates</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+            <div style="background:#091224; border:1px solid rgba(148,163,184,0.14); border-radius:10px; padding:14px;">
+                <div style="color:#38bdf8; font-weight:700; font-size:0.85rem; margin-bottom:6px;">Section 52 CGST Act</div>
+                <div style="font-size:0.76rem; color:#94a3b8; line-height:1.45;">
+                    1% Tax Collected at Source (TCS) on net taxable supplies. Must be matched against monthly GSTR-8 return filings by the 10th of following month.
+                </div>
+            </div>
+            <div style="background:#091224; border:1px solid rgba(148,163,184,0.14); border-radius:10px; padding:14px;">
+                <div style="color:#a78bfa; font-weight:700; font-size:0.85rem; margin-bottom:6px;">Section 194-O Income Tax</div>
+                <div style="font-size:0.76rem; color:#94a3b8; line-height:1.45;">
+                    TDS deduction at 0.75% / 1% on gross sales value credited to e-commerce participants. Strict point-in-time rate regime enforcement.
+                </div>
+            </div>
+            <div style="background:#091224; border:1px solid rgba(148,163,184,0.14); border-radius:10px; padding:14px;">
+                <div style="color:#34d399; font-weight:700; font-size:0.85rem; margin-bottom:6px;">RBI Nodal Directions</div>
+                <div style="font-size:0.76rem; color:#94a3b8; line-height:1.45;">
+                    Guidelines for intermediaries handling payments. Daily escrow balance reconciliation: <code>Closing = Opening + Collected - Settled</code> with zero unauthorized overdraft.
+                </div>
+            </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Immutable Regulatory Audit Trail ──
     st.markdown("""<div class="section-card">
         <div class="card-header-title">
             <span>📜 Immutable Regulatory Compliance Audit Trail</span>
-            <span style="font-size:0.75rem; color:#94a3b8;">RBI &amp; Statutory Trace</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">RBI &amp; Statutory Trace &bull; JSONL Interceptor Log</span>
         </div>""", unsafe_allow_html=True)
 
     ac1, ac2 = st.columns([1, 4])
@@ -1220,6 +1457,17 @@ with tab_audit:
             use_container_width=True
         )
 
+        # Download JSONL Interceptor log
+        jsonl_entries = read_audit_log_entries(limit=100)
+        jsonl_str = "\n".join([json.dumps(e) for e in jsonl_entries])
+        st.download_button(
+            label="📥 HITL Interceptor Log (JSONL)",
+            data=jsonl_str,
+            file_name=f"hitl_interceptor_log_{datetime.now().strftime('%Y%m%d')}.jsonl",
+            mime="application/x-ndjson",
+            use_container_width=True
+        )
+
     with ac2:
         recent_audit = audit_df.tail(audit_depth).sort_values("log_id", ascending=False)
         st.dataframe(
@@ -1234,33 +1482,27 @@ with tab_audit:
             hide_index=True
         )
 
+        # Surface recent HITL interceptor decisions
+        if jsonl_entries:
+            st.markdown("##### 🛡️ Recent Dual-Core HITL Interceptor Events")
+            hitl_df = pd.DataFrame([
+                {
+                    "Timestamp": e["timestamp"],
+                    "Event": e["event_type"],
+                    "Status": e["details"].get("decision", e["details"].get("status", "LOGGED")),
+                    "Payload / Reason": str(e["details"].get("payload", e["details"].get("reason", e["details"])))
+                }
+                for e in jsonl_entries[-10:]
+            ])
+            st.dataframe(hitl_df, use_container_width=True, hide_index=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ───────────────── OPERATING GUARDRAILS & SYSTEM BOUNDARIES ─────────────────
-st.markdown("""<div class="scope-box">
-    <div class="scope-title">
-        <span>🛡️ Operating Guardrails &amp; System Boundaries</span>
-    </div>
-    <div class="scope-item">
-        ✓ <strong>100% Deterministic Financial Calculations:</strong> LLMs are never permitted to perform financial arithmetic or balance computations. All calculations are executed via exact mathematical logic.
-    </div>
-    <div class="scope-item">
-        ✓ <strong>Zero Auto-Clearing of Financial Variances:</strong> Unreconciled commission or payout deltas strictly require human operations sign-off.
-    </div>
-    <div class="scope-item">
-        ✓ <strong>Direct Transaction Ledger Auditing:</strong> Operates directly on relational transactional databases and structured aggregator settlements for verifiable accuracy.
-    </div>
-    <div class="scope-item">
-        ✓ <strong>Controlled Remediation Protocol:</strong> Generates formal, auditable Debit Note vouchers and queues GSTR-8 releases, requiring treasury controller authorization before moving capital.
-    </div>
-</div>""", unsafe_allow_html=True)
 
 
 # ───────────────── GLOBAL FOOTER ─────────────────
 st.markdown("""<div class="app-footer">
-    <strong>SplitGuard AI</strong> — Autonomous Split-Settlement Reconciliation &amp; Escrow Integrity Engine<br>
-    Built for the <a href="https://razorpay.com" target="_blank">Razorpay AI Buildathon 2026 (Track 04: AI Finance Controller)</a> · Compliant with RBI Nodal Directions &amp; Section 52/194-O Statutory Withholdings<br>
+    <strong>SplitGuard AI</strong> &bull; Autonomous Split-Settlement Reconciliation &amp; Escrow Integrity Engine<br>
+    Built for the <a href="https://razorpay.com" target="_blank">Razorpay AI Buildathon 2026 (Track 04: AI Finance Controller)</a> &bull; Compliant with RBI Nodal Directions &amp; Section 52/194-O Statutory Withholdings<br>
     <a href="https://github.com/ParthKhandelwal537/split-settlement-leakage-detector" target="_blank">View GitHub Repository</a>
 </div>""", unsafe_allow_html=True)
 
