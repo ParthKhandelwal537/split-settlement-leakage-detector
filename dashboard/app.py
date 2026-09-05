@@ -453,8 +453,6 @@ with st.sidebar:
     - **Circuit Breaker:** `Halt on Nodal Escrow Deficit`
     - **Audit Log:** `Immutable JSONL with UTC ISO`
     """)
-    st.divider()
-    st.caption("Razorpay AI Buildathon 2026 Submission")
 
 
 # ═══════════════════════════════════════════════════════════════════════
